@@ -1,0 +1,131 @@
+{
+    "evaluation_type": "Deterministic reconciliation against synthetic ground truth",
+    "dataset": {
+        "total_records": 100,
+        "ground_truth_records": 100,
+        "result_records": 100
+    },
+    "overall": {
+        "correct": 100,
+        "wrong": 0,
+        "accuracy": 100.0
+    },
+    "batch_metrics": {
+        "total_records": 100,
+        "matched_records": 75,
+        "exception_records": 25,
+        "match_rate": 75.0,
+        "exception_rate": 25.0
+    },
+    "per_class_metrics": {
+        "AMOUNT_MISMATCH": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 12
+        },
+        "DUPLICATE": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 3
+        },
+        "MATCHED": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 75
+        },
+        "MISSING_PAYMENT": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 3
+        },
+        "MISSING_SETTLEMENT": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 4
+        },
+        "STATUS_MISMATCH": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 3
+        }
+    },
+    "confusion_matrix": {
+        "AMOUNT_MISMATCH": {
+            "AMOUNT_MISMATCH": 12,
+            "DUPLICATE": 0,
+            "MATCHED": 0,
+            "MISSING_PAYMENT": 0,
+            "MISSING_SETTLEMENT": 0,
+            "STATUS_MISMATCH": 0
+        },
+        "DUPLICATE": {
+            "AMOUNT_MISMATCH": 0,
+            "DUPLICATE": 3,
+            "MATCHED": 0,
+            "MISSING_PAYMENT": 0,
+            "MISSING_SETTLEMENT": 0,
+            "STATUS_MISMATCH": 0
+        },
+        "MATCHED": {
+            "AMOUNT_MISMATCH": 0,
+            "DUPLICATE": 0,
+            "MATCHED": 75,
+            "MISSING_PAYMENT": 0,
+            "MISSING_SETTLEMENT": 0,
+            "STATUS_MISMATCH": 0
+        },
+        "MISSING_PAYMENT": {
+            "AMOUNT_MISMATCH": 0,
+            "DUPLICATE": 0,
+            "MATCHED": 0,
+            "MISSING_PAYMENT": 3,
+            "MISSING_SETTLEMENT": 0,
+            "STATUS_MISMATCH": 0
+        },
+        "MISSING_SETTLEMENT": {
+            "AMOUNT_MISMATCH": 0,
+            "DUPLICATE": 0,
+            "MATCHED": 0,
+            "MISSING_PAYMENT": 0,
+            "MISSING_SETTLEMENT": 4,
+            "STATUS_MISMATCH": 0
+        },
+        "STATUS_MISMATCH": {
+            "AMOUNT_MISMATCH": 0,
+            "DUPLICATE": 0,
+            "MATCHED": 0,
+            "MISSING_PAYMENT": 0,
+            "MISSING_SETTLEMENT": 0,
+            "STATUS_MISMATCH": 3
+        }
+    },
+    "exception_distribution": {
+        "AMOUNT_MISMATCH": {
+            "count": 12,
+            "percentage": 12.0
+        },
+        "DUPLICATE": {
+            "count": 3,
+            "percentage": 3.0
+        },
+        "MISSING_PAYMENT": {
+            "count": 3,
+            "percentage": 3.0
+        },
+        "MISSING_SETTLEMENT": {
+            "count": 4,
+            "percentage": 4.0
+        },
+        "STATUS_MISMATCH": {
+            "count": 3,
+            "percentage": 3.0
+        }
+    },
+    "missing_results": []
+}
