@@ -371,8 +371,8 @@ def run_controller_agent(
     max_model_calls = 5
     max_tool_calls = 30
 
-    final_response = None
-
+    llm_status = "NOT_STARTED"
+    llm_error = None
     # --------------------------------------------------------
     # AGENT LOOP
     # --------------------------------------------------------
@@ -383,15 +383,35 @@ def run_controller_agent(
     ):
 
         model_call_count += 1
+        try:
 
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-                tools=TOOLS,
-            ),
-        )
+            response = client.models.generate_content(
+                model=MODEL_NAME,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    tools=TOOLS,
+                ),
+            )
+
+            llm_status = "AVAILABLE"
+
+        except Exception as error:
+
+            llm_status = "UNAVAILABLE"
+
+            llm_error = str(error)
+
+            final_response = (
+                "Gemini reasoning was unavailable. "
+                "The Finance Controller Agent could not "
+                "continue its LLM-driven investigation. "
+                "Deterministic reconciliation results remain "
+                "the source of financial truth. "
+                "Unresolved exceptions require manual review."
+            )
+
+            break
 
         if not response.candidates:
             break
@@ -638,6 +658,10 @@ def run_controller_agent(
     report["agent_version"] = "v2"
 
     report["model"] = MODEL_NAME
+    report["llm_status"] = llm_status
+
+    if llm_error is not None:
+        report["llm_error"] = llm_error
 
     report["tool_calls"] = (
         tool_call_count
