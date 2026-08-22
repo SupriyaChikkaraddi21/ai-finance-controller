@@ -1,4 +1,5 @@
 from rest_framework import status
+from .agent.controller import run_controller_agent
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -14,6 +15,7 @@ from .serializers import (
 )
 from .reconciliation_service import reconcile_batch
 from .ai_analysis_service import analyze_exception
+from .agent.controller import run_controller_agent
 
 
 class BatchListCreateView(APIView):
@@ -299,3 +301,60 @@ class AIAnalysisDetailView(APIView):
             serializer.data,
             status=status.HTTP_200_OK
         )
+class FinanceControllerAgentView(APIView):
+
+    def post(self, request, batch_id):
+
+        try:
+
+            batch = Batch.objects.get(
+                id=batch_id
+            )
+
+        except Batch.DoesNotExist:
+
+            return Response(
+                {
+                    "error": "Batch not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if batch.status != "COMPLETED":
+
+            return Response(
+                {
+                    "error": (
+                        "Batch must be reconciled "
+                        "before running the Finance "
+                        "Controller Agent."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+
+            report = run_controller_agent(
+                batch.id
+            )
+
+            return Response(
+                report,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as error:
+
+            return Response(
+                {
+                    "error": (
+                        "Finance Controller Agent "
+                        "failed."
+                    ),
+                    "reason": str(error),
+                },
+                status=(
+                    status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            )
