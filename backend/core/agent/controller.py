@@ -19,6 +19,7 @@ from .tools import (
     get_ai_analysis,
     verify_ai_analysis,
     build_controller_report,
+    assess_exception_risk,
 )
 
 from .prompts import (
@@ -100,6 +101,12 @@ def verify_analysis(
 ):
 
     return verify_ai_analysis(
+        reconciliation_id
+    )
+def assess_risk(
+    reconciliation_id: int
+):
+    return assess_exception_risk(
         reconciliation_id
     )
 
@@ -205,6 +212,26 @@ TOOLS = [
                     ],
                 },
             ),
+            types.FunctionDeclaration(
+    name="assess_risk",
+    description=(
+        "Assess the operational and financial risk "
+        "of one reconciliation exception. "
+        "Use this to determine investigation priority "
+        "and whether manual review may be required."
+    ),
+    parameters_json_schema={
+        "type": "object",
+        "properties": {
+            "reconciliation_id": {
+                "type": "integer"
+            }
+        },
+        "required": [
+            "reconciliation_id"
+        ],
+    },
+),
         ]
     )
 ]
@@ -248,7 +275,11 @@ def execute_tool(
         return verify_analysis(
             arguments["reconciliation_id"]
         )
+    if name == "assess_risk":
 
+        return assess_risk(
+            arguments["reconciliation_id"]
+            )
     raise ValueError(
         f"Unknown agent tool: {name}"
     )
@@ -257,16 +288,17 @@ def execute_tool(
 # ============================================================
 # RUN AGENT
 # ============================================================
-
 def run_controller_agent(
     batch_id
 ):
     """
     Run the Finance Controller Agent.
 
-    The agent uses Gemini for planning/reasoning,
-    while all financial evidence comes from deterministic
-    backend tools.
+    Gemini controls the investigation workflow through
+    deterministic backend tools.
+
+    The deterministic reconciliation engine remains the
+    source of financial truth.
     """
 
     batch = Batch.objects.get(
@@ -280,14 +312,218 @@ def run_controller_agent(
             "Finance Controller Agent started."
         ),
         metadata={
-            "agent_version": AGENT_VERSION,
+            "agent_version": "v2",
             "model": MODEL_NAME,
         },
     )
 
+    client = get_client()
+
     # --------------------------------------------------------
-    # IMPORTANT:
-    # Get deterministic data first.
+    # INITIAL CONTEXT
+    #
+    # We give the agent only the batch identifier.
+    # The agent must use tools to inspect the evidence.
+    # --------------------------------------------------------
+
+    initial_prompt = (
+        CONTROLLER_SYSTEM_PROMPT
+        + "\n\n"
+        + CONTROLLER_TASK_PROMPT.format(
+            batch_id=batch_id
+        )
+        + "\n\n"
+        "You are operating as an autonomous Finance "
+        "Controller Agent.\n\n"
+        f"Batch ID: {batch_id}\n\n"
+        "You must investigate this batch using the "
+        "available tools.\n\n"
+        "Required workflow:\n"
+        "1. Inspect the batch.\n"
+        "2. Inspect the deterministic exceptions.\n"
+        "3. Assess risk for exceptions that require "
+        "investigation.\n"
+        "4. Inspect transaction evidence when needed.\n"
+        "5. Inspect existing AI analysis when available.\n"
+        "6. Verify AI analysis against deterministic evidence.\n"
+        "7. Decide whether each investigated exception is "
+        "CONFIRMED or requires MANUAL_REVIEW.\n"
+        "8. Never change deterministic financial results.\n"
+        "9. Produce a concise controller report.\n\n"
+        "Use tools instead of assuming financial facts."
+    )
+
+    contents = [
+        types.Content(
+            role="user",
+            parts=[
+                types.Part(
+                    text=initial_prompt
+                )
+            ],
+        )
+    ]
+
+    tool_trace = []
+    tool_call_count = 0
+    model_call_count = 0
+
+    max_model_calls = 5
+    max_tool_calls = 30
+
+    final_response = None
+
+    # --------------------------------------------------------
+    # AGENT LOOP
+    # --------------------------------------------------------
+
+    while (
+        model_call_count < max_model_calls
+        and tool_call_count < max_tool_calls
+    ):
+
+        model_call_count += 1
+
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                tools=TOOLS,
+            ),
+        )
+
+        if not response.candidates:
+            break
+
+        candidate = response.candidates[0]
+        content = candidate.content
+
+        if not content:
+            break
+
+        function_calls = []
+
+        for part in content.parts:
+
+            if getattr(
+                part,
+                "function_call",
+                None
+            ):
+                function_calls.append(
+                    part.function_call
+                )
+
+        # ----------------------------------------------------
+        # NO TOOL CALL
+        #
+        # Agent has finished reasoning and produced
+        # its controller report.
+        # ----------------------------------------------------
+
+        if not function_calls:
+
+            final_response = (
+                response.text
+                if response.text
+                else "Controller completed."
+            )
+
+            break
+
+        # ----------------------------------------------------
+        # PRESERVE MODEL TOOL-CALL MESSAGE
+        # ----------------------------------------------------
+
+        contents.append(
+            content
+        )
+
+        # ----------------------------------------------------
+        # EXECUTE TOOLS
+        # ----------------------------------------------------
+
+        for function_call in function_calls:
+
+            if tool_call_count >= max_tool_calls:
+                break
+
+            tool_call_count += 1
+
+            name = function_call.name
+
+            arguments = (
+                dict(
+                    function_call.args
+                )
+                if function_call.args
+                else {}
+            )
+
+            tool_trace.append(
+                {
+                    "tool": name,
+                    "arguments": arguments,
+                }
+            )
+
+            try:
+
+                result = execute_tool(
+                    name,
+                    arguments,
+                )
+
+            except Exception as error:
+
+                result = {
+                    "error": str(error)
+                }
+
+            # ------------------------------------------------
+            # Gemini expects function responses as USER
+            # content with function_response parts.
+            # ------------------------------------------------
+
+            response_part = types.Part(
+                function_response=(
+                    types.FunctionResponse(
+                        name=name,
+                        response={
+                            "result": result
+                        },
+                    )
+                )
+            )
+
+            contents.append(
+                types.Content(
+                    role="user",
+                    parts=[
+                        response_part
+                    ],
+                )
+            )
+
+    # --------------------------------------------------------
+    # FALLBACK IF AGENT HIT LIMIT
+    # --------------------------------------------------------
+
+    if final_response is None:
+
+        final_response = (
+            "Finance Controller Agent stopped after "
+            "reaching its investigation limit. "
+            "Manual review is required for unresolved "
+            "exceptions."
+        )
+
+    # --------------------------------------------------------
+    # BUILD REPORT FROM DETERMINISTIC DATA
+    #
+    # This does NOT ask Gemini to invent financial truth.
+    # The report is based on existing verified backend data.
     # --------------------------------------------------------
 
     summary = get_batch_summary(
@@ -297,11 +533,6 @@ def run_controller_agent(
     exceptions = get_batch_exceptions(
         batch_id
     )
-
-    # --------------------------------------------------------
-    # Existing AI analyses are reused.
-    # This prevents unnecessary Gemini API usage.
-    # --------------------------------------------------------
 
     analyses = []
 
@@ -329,11 +560,17 @@ def run_controller_agent(
                             "transaction_id"
                         ]
                     ),
+                    "deterministic_exception": (
+                        exception[
+                            "exception_type"
+                        ]
+                    ),
                     "classification": None,
                     "confidence": None,
                     "resolution": (
                         "MANUAL_REVIEW"
                     ),
+                    "verified": False,
                     "reason": (
                         "AI analysis is not available."
                     ),
@@ -389,62 +626,34 @@ def run_controller_agent(
             }
         )
 
-    # --------------------------------------------------------
-    # Gemini gets the verified controller state.
-    #
-    # It is used for reasoning/report generation,
-    # NOT for financial truth.
-    # --------------------------------------------------------
-
-    client = get_client()
-
-    controller_state = {
-        "batch": summary,
-        "exceptions": exceptions,
-        "verified_analyses": analyses,
-    }
-
-    prompt = (
-        CONTROLLER_SYSTEM_PROMPT
-        + "\n\n"
-        + CONTROLLER_TASK_PROMPT.format(
-            batch_id=batch_id
-        )
-        + "\n\nCURRENT VERIFIED STATE:\n"
-        + json.dumps(
-            controller_state,
-            indent=2,
-        )
-    )
-
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0.1,
-        ),
-    )
-
-    agent_summary = (
-        response.text
-        if response.text
-        else "Controller completed."
-    )
-
     report = build_controller_report(
         batch_id,
         analyses,
     )
 
     report["agent_summary"] = (
-        agent_summary
+        final_response
     )
 
-    report["agent_version"] = (
-        AGENT_VERSION
-    )
+    report["agent_version"] = "v2"
 
     report["model"] = MODEL_NAME
+
+    report["tool_calls"] = (
+        tool_call_count
+    )
+
+    report["model_calls"] = (
+        model_call_count
+    )
+
+    report["tool_trace"] = (
+        tool_trace
+    )
+
+    report["agent_mode"] = (
+        "TOOL_USING_CONTROLLER"
+    )
 
     AuditLog.objects.create(
         batch=batch,
@@ -453,16 +662,19 @@ def run_controller_agent(
             "Finance Controller Agent completed."
         ),
         metadata={
-            "agent_version": AGENT_VERSION,
+            "agent_version": "v2",
             "model": MODEL_NAME,
-            "exceptions_analyzed": (
-                len(analyses)
+            "model_calls": model_call_count,
+            "tool_calls": tool_call_count,
+            "exceptions": len(
+                exceptions
             ),
-            "manual_review_required": sum(
-                1
-                for item in analyses
-                if item["resolution"]
-                == "MANUAL_REVIEW"
+            "manual_review_required": (
+                report[
+                    "agent"
+                ][
+                    "manual_review_required"
+                ]
             ),
         },
     )

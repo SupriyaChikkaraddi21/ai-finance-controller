@@ -515,3 +515,104 @@ def build_controller_report(
         "unresolved_exceptions": manual_review,
         "resolved_exceptions": confirmed,
     }
+# ============================================================
+# TOOL — ASSESS EXCEPTION RISK
+# ============================================================
+
+def assess_exception_risk(reconciliation_id):
+    """
+    Assess the operational risk of a reconciliation exception.
+
+    This tool does NOT change financial data.
+    It only evaluates how urgently the exception
+    should be investigated.
+    """
+
+    result = (
+        ReconciliationResult.objects
+        .select_related("transaction")
+        .get(id=reconciliation_id)
+    )
+
+    transaction = result.transaction
+
+    difference = (
+        abs(result.difference)
+        if result.difference is not None
+        else Decimal("0")
+    )
+
+    risk = "LOW"
+    reasons = []
+
+    # --------------------------------------------------------
+    # HIGH RISK CONDITIONS
+    # --------------------------------------------------------
+
+    if result.exception_type in {
+        "MISSING_PAYMENT",
+        "MISSING_SETTLEMENT",
+        "DUPLICATE",
+    }:
+        risk = "HIGH"
+
+        reasons.append(
+            f"Exception type {result.exception_type} "
+            "can directly affect financial completeness."
+        )
+
+    elif difference >= Decimal("100"):
+        risk = "HIGH"
+
+        reasons.append(
+            f"Financial difference is {difference}, "
+            "which is significant."
+        )
+
+    # --------------------------------------------------------
+    # MEDIUM RISK CONDITIONS
+    # --------------------------------------------------------
+
+    elif result.exception_type in {
+        "STATUS_MISMATCH",
+        "AMOUNT_MISMATCH",
+        "CALCULATION_MISMATCH",
+    }:
+        risk = "MEDIUM"
+
+        reasons.append(
+            "Exception requires additional financial evidence "
+            "before resolution."
+        )
+
+    elif difference > Decimal("0"):
+        risk = "MEDIUM"
+
+        reasons.append(
+            f"Unexplained financial difference of {difference}."
+        )
+
+    # --------------------------------------------------------
+    # UNKNOWN / MANUAL REVIEW
+    # --------------------------------------------------------
+
+    elif result.exception_type == "UNKNOWN":
+        risk = "MEDIUM"
+
+        reasons.append(
+            "Root cause is not established by deterministic "
+            "reconciliation evidence."
+        )
+
+    return {
+        "reconciliation_id": result.id,
+        "transaction_id": transaction.transaction_id,
+        "exception_type": result.exception_type,
+        "difference": str(difference),
+        "risk_level": risk,
+        "reasons": reasons,
+        "requires_manual_review": (
+            risk == "HIGH"
+            or result.exception_type == "UNKNOWN"
+        ),
+    }
