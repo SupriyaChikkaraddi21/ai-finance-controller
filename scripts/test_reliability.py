@@ -648,20 +648,31 @@ def test_ai_api_failure():
     from django.test import Client
 
     from core.models import (
-        ReconciliationResult
+          Batch,
+        ReconciliationResult,
     )
 
     # --------------------------------------------------------
     # Find a known exception
     # --------------------------------------------------------
+    batch = (
+        Batch.objects
+        .filter(
+            status="COMPLETED"
+        )
+        .order_by("-id")
+        .first()
+    )
 
     reconciliation = (
         ReconciliationResult.objects
         .filter(
-            transaction__batch_id=2,
+            transaction__batch=batch,
             result="EXCEPTION"
         )
         .first()
+        if batch
+        else None
     )
 
     if reconciliation is None:
@@ -804,6 +815,130 @@ def test_ai_api_failure():
 
 
 # ============================================================
+# TEST 7 — MALFORMED AI RESPONSE
+# ============================================================
+
+def test_malformed_ai_response():
+    """
+    Simulate Gemini returning malformed JSON and verify
+    that the API safely falls back to MANUAL_REVIEW.
+    """
+
+    print()
+    print("TEST 7 — MALFORMED AI RESPONSE")
+    print("----------------------------------------")
+
+    backend_dir = os.path.join(
+        BASE_DIR,
+        "backend"
+    )
+
+    if backend_dir not in sys.path:
+        sys.path.insert(0, backend_dir)
+
+    os.environ.setdefault(
+        "DJANGO_SETTINGS_MODULE",
+        "config.settings"
+    )
+
+    import django
+    django.setup()
+
+    from django.conf import settings
+
+    if "testserver" not in settings.ALLOWED_HOSTS:
+        settings.ALLOWED_HOSTS.append("testserver")
+
+    from unittest.mock import patch
+    from django.test import Client
+    from core.models import Batch, ReconciliationResult
+
+    batch = (
+        Batch.objects
+        .filter(status="COMPLETED")
+        .order_by("-id")
+        .first()
+    )
+
+    reconciliation = (
+        ReconciliationResult.objects
+        .filter(
+            transaction__batch=batch,
+            result="EXCEPTION"
+        )
+        .first()
+        if batch
+        else None
+    )
+
+    if reconciliation is None:
+        print("FAIL")
+        print(
+            "No exception record is available "
+            "for the malformed AI response test."
+        )
+        return
+
+    def simulated_malformed_response(*args, **kwargs):
+        raise ValueError(
+            "Malformed AI response: invalid JSON"
+        )
+
+    try:
+        with patch(
+            "core.views.analyze_exception",
+            side_effect=simulated_malformed_response
+        ):
+            client = Client()
+
+            response = client.post(
+                f"/api/reconciliations/"
+                f"{reconciliation.id}/ai-analysis/"
+            )
+
+        if response.status_code != 503:
+            print("FAIL")
+            print(
+                f"Expected HTTP 503, got "
+                f"{response.status_code}"
+            )
+            print(response.content.decode())
+            return
+
+        data = response.json()
+
+        if (
+            data.get("fallback") == "MANUAL_REVIEW"
+            and data.get("deterministic_result") == "EXCEPTION"
+            and data.get("deterministic_exception")
+            == reconciliation.exception_type
+        ):
+            print("PASS")
+            print(
+                "Malformed AI response was handled safely."
+            )
+            print("Fallback: MANUAL_REVIEW")
+            print(
+                "Deterministic reconciliation "
+                "remained unchanged."
+            )
+        else:
+            print("FAIL")
+            print(
+                "Malformed AI response did not produce "
+                "the expected controlled fallback."
+            )
+            print(f"Response: {data}")
+
+    except Exception as error:
+        print("FAIL")
+        print(
+            f"Malformed AI response test crashed: "
+            f"{error}"
+        )
+
+
+# ============================================================
 # MAIN
 # ============================================================
 
@@ -831,6 +966,7 @@ def main():
     test_duplicate_records()
     test_huge_discrepancy()
     test_ai_api_failure()
+    test_malformed_ai_response()
 
     print()
     print("========================================")

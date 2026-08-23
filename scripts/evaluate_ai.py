@@ -47,7 +47,9 @@ from core.models import (
 # CONFIGURATION
 # ============================================================
 
-BATCH_ID = 2
+BATCH_ID = int(
+    sys.argv[1]
+) if len(sys.argv) > 1 else 2
 
 OUTPUT_FILE = os.path.join(
     BASE_DIR,
@@ -686,7 +688,7 @@ def main():
             "per_class_metrics":ai_metrics,
 
             "confusion_matrix":ai_confusion,
-            
+
         },
 
         "expected_classification_mapping": (

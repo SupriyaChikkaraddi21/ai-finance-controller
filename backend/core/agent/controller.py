@@ -20,7 +20,9 @@ from .tools import (
     verify_ai_analysis,
     build_controller_report,
     assess_exception_risk,
+
 )
+from core.ai_analysis_service import analyze_exception
 
 from .prompts import (
     CONTROLLER_SYSTEM_PROMPT,
@@ -31,7 +33,7 @@ from .prompts import (
 load_dotenv()
 
 
-MODEL_NAME = "gemini-3.6-flash"
+MODEL_NAME = "gemini-3.5-flash-lite"
 AGENT_VERSION = "v1"
 
 
@@ -288,22 +290,35 @@ def execute_tool(
 # ============================================================
 # RUN AGENT
 # ============================================================
+# ============================================================
+# RUN AGENT
+# ============================================================
+
 def run_controller_agent(
     batch_id
 ):
     """
     Run the Finance Controller Agent.
 
-    Gemini controls the investigation workflow through
-    deterministic backend tools.
+    Python gathers and verifies the deterministic financial
+    state first. Gemini then performs controller-level
+    reasoning over that verified state.
 
     The deterministic reconciliation engine remains the
     source of financial truth.
     """
 
+    # --------------------------------------------------------
+    # GET BATCH
+    # --------------------------------------------------------
+
     batch = Batch.objects.get(
         id=batch_id
     )
+
+    # --------------------------------------------------------
+    # START AUDIT LOG
+    # --------------------------------------------------------
 
     AuditLog.objects.create(
         batch=batch,
@@ -317,233 +332,18 @@ def run_controller_agent(
         },
     )
 
+    # --------------------------------------------------------
+    # GEMINI CLIENT
+    # --------------------------------------------------------
+
     client = get_client()
 
     # --------------------------------------------------------
-    # INITIAL CONTEXT
+    # BUILD DETERMINISTIC CONTROLLER STATE
     #
-    # We give the agent only the batch identifier.
-    # The agent must use tools to inspect the evidence.
-    # --------------------------------------------------------
-
-    initial_prompt = (
-        CONTROLLER_SYSTEM_PROMPT
-        + "\n\n"
-        + CONTROLLER_TASK_PROMPT.format(
-            batch_id=batch_id
-        )
-        + "\n\n"
-        "You are operating as an autonomous Finance "
-        "Controller Agent.\n\n"
-        f"Batch ID: {batch_id}\n\n"
-        "You must investigate this batch using the "
-        "available tools.\n\n"
-        "Required workflow:\n"
-        "1. Inspect the batch.\n"
-        "2. Inspect the deterministic exceptions.\n"
-        "3. Assess risk for exceptions that require "
-        "investigation.\n"
-        "4. Inspect transaction evidence when needed.\n"
-        "5. Inspect existing AI analysis when available.\n"
-        "6. Verify AI analysis against deterministic evidence.\n"
-        "7. Decide whether each investigated exception is "
-        "CONFIRMED or requires MANUAL_REVIEW.\n"
-        "8. Never change deterministic financial results.\n"
-        "9. Produce a concise controller report.\n\n"
-        "Use tools instead of assuming financial facts."
-    )
-
-    contents = [
-        types.Content(
-            role="user",
-            parts=[
-                types.Part(
-                    text=initial_prompt
-                )
-            ],
-        )
-    ]
-
-    tool_trace = []
-    tool_call_count = 0
-    model_call_count = 0
-
-    max_model_calls = 5
-    max_tool_calls = 30
-
-    llm_status = "NOT_STARTED"
-    llm_error = None
-    # --------------------------------------------------------
-    # AGENT LOOP
-    # --------------------------------------------------------
-
-    while (
-        model_call_count < max_model_calls
-        and tool_call_count < max_tool_calls
-    ):
-
-        model_call_count += 1
-        try:
-
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    temperature=0.1,
-                    tools=TOOLS,
-                ),
-            )
-
-            llm_status = "AVAILABLE"
-
-        except Exception as error:
-
-            llm_status = "UNAVAILABLE"
-
-            llm_error = str(error)
-
-            final_response = (
-                "Gemini reasoning was unavailable. "
-                "The Finance Controller Agent could not "
-                "continue its LLM-driven investigation. "
-                "Deterministic reconciliation results remain "
-                "the source of financial truth. "
-                "Unresolved exceptions require manual review."
-            )
-
-            break
-
-        if not response.candidates:
-            break
-
-        candidate = response.candidates[0]
-        content = candidate.content
-
-        if not content:
-            break
-
-        function_calls = []
-
-        for part in content.parts:
-
-            if getattr(
-                part,
-                "function_call",
-                None
-            ):
-                function_calls.append(
-                    part.function_call
-                )
-
-        # ----------------------------------------------------
-        # NO TOOL CALL
-        #
-        # Agent has finished reasoning and produced
-        # its controller report.
-        # ----------------------------------------------------
-
-        if not function_calls:
-
-            final_response = (
-                response.text
-                if response.text
-                else "Controller completed."
-            )
-
-            break
-
-        # ----------------------------------------------------
-        # PRESERVE MODEL TOOL-CALL MESSAGE
-        # ----------------------------------------------------
-
-        contents.append(
-            content
-        )
-
-        # ----------------------------------------------------
-        # EXECUTE TOOLS
-        # ----------------------------------------------------
-
-        for function_call in function_calls:
-
-            if tool_call_count >= max_tool_calls:
-                break
-
-            tool_call_count += 1
-
-            name = function_call.name
-
-            arguments = (
-                dict(
-                    function_call.args
-                )
-                if function_call.args
-                else {}
-            )
-
-            tool_trace.append(
-                {
-                    "tool": name,
-                    "arguments": arguments,
-                }
-            )
-
-            try:
-
-                result = execute_tool(
-                    name,
-                    arguments,
-                )
-
-            except Exception as error:
-
-                result = {
-                    "error": str(error)
-                }
-
-            # ------------------------------------------------
-            # Gemini expects function responses as USER
-            # content with function_response parts.
-            # ------------------------------------------------
-
-            response_part = types.Part(
-                function_response=(
-                    types.FunctionResponse(
-                        name=name,
-                        response={
-                            "result": result
-                        },
-                    )
-                )
-            )
-
-            contents.append(
-                types.Content(
-                    role="user",
-                    parts=[
-                        response_part
-                    ],
-                )
-            )
-
-    # --------------------------------------------------------
-    # FALLBACK IF AGENT HIT LIMIT
-    # --------------------------------------------------------
-
-    if final_response is None:
-
-        final_response = (
-            "Finance Controller Agent stopped after "
-            "reaching its investigation limit. "
-            "Manual review is required for unresolved "
-            "exceptions."
-        )
-
-    # --------------------------------------------------------
-    # BUILD REPORT FROM DETERMINISTIC DATA
+    # Python gathers the financial evidence FIRST.
     #
-    # This does NOT ask Gemini to invent financial truth.
-    # The report is based on existing verified backend data.
+    # Gemini does not determine financial truth.
     # --------------------------------------------------------
 
     summary = get_batch_summary(
@@ -553,7 +353,6 @@ def run_controller_agent(
     exceptions = get_batch_exceptions(
         batch_id
     )
-
     analyses = []
 
     for exception in exceptions:
@@ -564,44 +363,91 @@ def run_controller_agent(
             ]
         )
 
+        # ------------------------------------------------
+        # CHECK WHETHER AI ANALYSIS ALREADY EXISTS
+        # ------------------------------------------------
+
         ai_analysis = get_ai_analysis(
             reconciliation_id
         )
 
+        # ------------------------------------------------
+        # GENERATE AI ANALYSIS IF MISSING
+        # ------------------------------------------------
         if not ai_analysis["available"]:
 
-            analyses.append(
-                {
-                    "reconciliation_id": (
-                        reconciliation_id
-                    ),
-                    "transaction_id": (
-                        exception[
-                            "transaction_id"
-                        ]
-                    ),
-                    "deterministic_exception": (
-                        exception[
-                            "exception_type"
-                        ]
-                    ),
-                    "classification": None,
-                    "confidence": None,
-                    "resolution": (
-                        "MANUAL_REVIEW"
-                    ),
-                    "verified": False,
-                    "reason": (
-                        "AI analysis is not available."
-                    ),
-                }
-            )
+            try:
 
-            continue
+                analyze_exception(
+                    reconciliation_id
+                )
+
+                # Fetch the newly created analysis
+                ai_analysis = get_ai_analysis(
+                    reconciliation_id
+                )
+
+            except Exception as error:
+
+                risk = assess_risk(
+                    reconciliation_id
+                )
+
+                analyses.append(
+                    {
+                        "reconciliation_id": (
+                            reconciliation_id
+                        ),
+                        "transaction_id": (
+                            exception[
+                                "transaction_id"
+                            ]
+                        ),
+                        "deterministic_exception": (
+                            exception[
+                                "exception_type"
+                            ]
+                        ),
+                        "classification": None,
+                        "confidence": None,
+                        "resolution": (
+                            "MANUAL_REVIEW"
+                        ),
+                        "verified": False,
+                        "reason": (
+                            "AI analysis unavailable: "
+                            + str(error)
+                        ),
+                        "risk_level": (
+                            risk["risk_level"]
+                        ),
+                        "risk_reasons": (
+                            risk["reasons"]
+                        ),
+                    }
+                )
+
+                # AI failure must never stop the
+                # deterministic controller.
+                continue
+        # ------------------------------------------------
+        # ASSESS EXCEPTION RISK
+        # ------------------------------------------------
+
+        risk = assess_risk(
+            reconciliation_id
+        )
+
+        # ------------------------------------------------
+        # VERIFY AI ANALYSIS
+        # ------------------------------------------------
 
         verification = verify_ai_analysis(
             reconciliation_id
         )
+        # ------------------------------------------------
+        # STORE VERIFIED ANALYSIS
+        # ------------------------------------------------
 
         analyses.append(
             {
@@ -643,13 +489,295 @@ def run_controller_agent(
                         "reason"
                     ]
                 ),
+                "risk_level": (
+                    risk["risk_level"]
+                ),
+                "risk_reasons": (
+                    risk["reasons"]
+                ),
+
             }
         )
+    # --------------------------------------------------------
+    # BUILD VERIFIED CONTROLLER STATE
+    #
+    # Python is authoritative for all financial counts.
+    # Gemini is responsible only for interpretation,
+    # prioritization, and recommendations.
+    # --------------------------------------------------------
+
+    exception_counts = {}
+
+    for exception in exceptions:
+        exception_type = (
+            exception["exception_type"]
+            or "UNKNOWN"
+        )
+
+        exception_counts[exception_type] = (
+            exception_counts.get(
+                exception_type,
+                0
+            ) + 1
+        )
+
+    confirmed_count = sum(
+        1
+        for analysis in analyses
+        if analysis["resolution"] == "CONFIRMED"
+    )
+
+    manual_review_count = sum(
+        1
+        for analysis in analyses
+        if analysis["resolution"] == "MANUAL_REVIEW"
+    )
+
+    controller_state = {
+        "batch": summary,
+
+        "authoritative_exception_counts": {
+            "total": len(exceptions),
+            "by_type": exception_counts,
+            "confirmed": confirmed_count,
+            "manual_review_required": (
+                manual_review_count
+            ),
+        },
+
+        "exceptions": exceptions,
+
+        "verified_analyses": analyses,
+    }
+    # --------------------------------------------------------
+    # DETERMINISTIC RISK GROUPS
+    # Python calculates these counts.
+    # Gemini only explains and prioritizes them.
+    # --------------------------------------------------------
+
+    high_risk_exceptions = [
+        analysis
+        for analysis in analyses
+        if analysis["risk_level"] == "HIGH"
+    ]
+
+    medium_risk_exceptions = [
+        analysis
+        for analysis in analyses
+        if analysis["risk_level"] == "MEDIUM"
+    ]
+
+    risk_summary = {
+        "high_risk_count": len(
+            high_risk_exceptions
+        ),
+        "medium_risk_count": len(
+            medium_risk_exceptions
+        ),
+        "high_risk_reconciliation_ids": [
+            analysis["reconciliation_id"]
+            for analysis in high_risk_exceptions
+        ],
+        "medium_risk_reconciliation_ids": [
+            analysis["reconciliation_id"]
+            for analysis in medium_risk_exceptions
+        ],
+    }
+    # --------------------------------------------------------
+    # GEMINI CONTROLLER PROMPT
+    #
+    # Gemini receives verified financial state.
+    # It does NOT modify or invent financial facts.
+    # --------------------------------------------------------
+
+    prompt = (
+        CONTROLLER_SYSTEM_PROMPT
+        + "\n\n"
+        + CONTROLLER_TASK_PROMPT.format(
+            batch_id=batch_id
+        )
+        + "\n\n"
+        "You are the Finance Controller Agent.\n\n"
+
+        "The following financial state has already been "
+        "calculated by deterministic backend logic.\n\n"
+
+        "IMPORTANT: The deterministic backend is the "
+        "SOURCE OF TRUTH for every financial number, "
+        "count, exception type, transaction ID, and "
+        "resolution status.\n\n"
+        "AUTHORITATIVE DETERMINISTIC FACTS:\n"
+        + json.dumps(
+            {
+                "batch": summary,
+                "exception_counts": {
+                    "total": len(exceptions),
+                    "by_type": exception_counts,
+                    "confirmed": confirmed_count,
+                    "manual_review_required": (
+                        manual_review_count
+                    ),
+                },
+                "risk_summary": risk_summary,
+            },
+            indent=2,
+
+        )
+        + "\n\n"
+
+        "FULL VERIFIED EXCEPTION DATA:\n"
+        + json.dumps(
+            exceptions,
+            indent=2,
+        )
+        + "\n\n"
+
+        "VERIFIED AI ANALYSES:\n"
+        + json.dumps(
+            analyses,
+            indent=2,
+        )
+        + "\n\n"
+
+        "STRICT CONTROLLER RULES:\n"
+        "1. The deterministic backend is the sole source of truth "
+        "for all financial facts.\n"
+
+        "2. Never recalculate, recount, estimate, or infer "
+        "deterministic financial numbers.\n"
+
+        "3. Never independently count reconciliation IDs in the "
+        "provided lists.\n"
+
+        "4. Never change the authoritative total exception count, "
+        "exception-type counts, confirmed count, manual-review "
+        "count, or risk counts.\n"
+
+        "5. When mentioning a group of exceptions, use the exact "
+        "group count supplied by the backend. Do not calculate "
+        "the count from the ID ranges yourself.\n"
+
+        "6. Never invent transaction IDs, reconciliation IDs, "
+        "exception types, risk levels, or financial amounts.\n"
+
+        "7. Clearly distinguish CONFIRMED exceptions from "
+        "MANUAL_REVIEW exceptions.\n"
+
+        "8. The backend risk_level and risk_reasons are "
+        "authoritative. Never downgrade HIGH risk to MEDIUM or "
+        "LOW. Never upgrade LOW risk without explicit "
+        "deterministic evidence.\n"
+
+        "9. You may explain operational implications and "
+        "recommend investigation priorities, but you must not "
+        "alter financial facts.\n"
+
+        "10. If evidence is insufficient to establish a root "
+        "cause, explicitly classify the item as MANUAL_REVIEW.\n"
+
+        "11. Do not state that a group contains a specific number "
+        "of items unless that number is explicitly present in the "
+        "authoritative backend data.\n"
+
+        "12. If an ID range is displayed, treat it only as a list "
+        "of identifiers. Never use the range to derive a count.\n"
+
+        "13. Use INR (₹) for all monetary amounts. Never use $, "
+        "USD, or other currency symbols.\n\n"
+        "14. Preserve every deterministic exception_type exactly "
+        "as provided by the backend. Never rename, normalize, "
+        "reinterpret, or replace exception types.\n"
+
+        "15. The authoritative exception types are "
+        "MISSING_SETTLEMENT, MISSING_PAYMENT, UNKNOWN, "
+        "STATUS_MISMATCH, and DUPLICATE. Use these exact names "
+        "when referring to exception types.\n"
+
+        "16. Do not introduce alternative classification labels "
+        "such as MISSING_RECORD, STATUS_ISSUE, "
+        "AMOUNT_DISCREPANCY, or similar labels unless they "
+        "already exist in the authoritative backend data.\n"
+    )
+    # --------------------------------------------------------
+    # MODEL EXECUTION
+    # --------------------------------------------------------
+
+    tool_trace = []
+
+    tool_call_count = 0
+
+    model_call_count = 0
+
+    max_model_calls = 1
+
+    max_tool_calls = 0
+
+    final_response = None
+
+    llm_status = "NOT_STARTED"
+
+    llm_error = None
+
+    try:
+
+        model_call_count += 1
+
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+            ),
+        )
+
+        llm_status = "AVAILABLE"
+
+        final_response = (
+            response.text
+            if response.text
+            else "Controller completed."
+        )
+
+    except Exception as error:
+
+        llm_status = "UNAVAILABLE"
+
+        llm_error = str(error)
+
+        final_response = (
+            "Gemini reasoning was unavailable. "
+            "Deterministic reconciliation results remain "
+            "the source of financial truth. "
+            "Unresolved exceptions require manual review."
+        )
+
+    # --------------------------------------------------------
+    # FALLBACK
+    # --------------------------------------------------------
+
+    if final_response is None:
+
+        final_response = (
+            "Finance Controller Agent completed with "
+            "deterministic reconciliation results. "
+            "Manual review is required for unresolved "
+            "exceptions."
+        )
+
+    # --------------------------------------------------------
+    # BUILD FINAL CONTROLLER REPORT
+    #
+    # Financial truth comes from the deterministic backend.
+    # --------------------------------------------------------
 
     report = build_controller_report(
         batch_id,
         analyses,
     )
+
+    # --------------------------------------------------------
+    # ADD AGENT METADATA
+    # --------------------------------------------------------
 
     report["agent_summary"] = (
         final_response
@@ -658,9 +786,11 @@ def run_controller_agent(
     report["agent_version"] = "v2"
 
     report["model"] = MODEL_NAME
+
     report["llm_status"] = llm_status
 
     if llm_error is not None:
+
         report["llm_error"] = llm_error
 
     report["tool_calls"] = (
@@ -676,8 +806,31 @@ def run_controller_agent(
     )
 
     report["agent_mode"] = (
-        "TOOL_USING_CONTROLLER"
+        "BATCH_REASONING_CONTROLLER"
     )
+    # --------------------------------------------------------
+    # DETERMINISTIC RISK SUMMARY
+    # --------------------------------------------------------
+
+    report["risk_summary"] = {
+        "high_risk_count": len(
+            high_risk_exceptions
+        ),
+        "medium_risk_count": len(
+            medium_risk_exceptions
+        ),
+        "high_risk_reconciliation_ids": [
+            analysis["reconciliation_id"]
+            for analysis in high_risk_exceptions
+        ],
+        "medium_risk_reconciliation_ids": [
+            analysis["reconciliation_id"]
+            for analysis in medium_risk_exceptions
+        ],
+    }
+    # --------------------------------------------------------
+    # COMPLETION AUDIT LOG
+    # --------------------------------------------------------
 
     AuditLog.objects.create(
         batch=batch,
@@ -702,5 +855,9 @@ def run_controller_agent(
             ),
         },
     )
+
+    # --------------------------------------------------------
+    # RETURN FINAL REPORT
+    # --------------------------------------------------------
 
     return report

@@ -1,8 +1,105 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import "./App.css";
 
 const API = "/api";
+function renderControllerSummary(text) {
+  if (!text) return null;
 
+  return text.split("\n").map((line, index) => {
+    let clean = line.trim();
+
+    // Remove markdown heading markers
+    clean = clean.replace(/^#+\s*/, "");
+
+    // Remove bold / italic markdown
+    clean = clean.replace(/\*\*/g, "");
+    clean = clean.replace(/\*/g, "");
+
+    // Remove backticks
+    clean = clean.replace(/`/g, "");
+
+    // Remove bullet markers
+    clean = clean.replace(/^[-•]\s*/, "");
+
+    // Remove numbered-list formatting
+    const numberedMatch = clean.match(/^(\d+)\.\s*(.*)$/);
+
+    if (numberedMatch) {
+      clean = numberedMatch[2];
+    }
+
+    clean = clean.trim();
+
+    // Ignore empty separator lines
+    if (!clean || clean === "--") {
+      return null;
+    }
+
+    // Detect section headings
+    const headingWords = [
+      "FINANCE CONTROLLER REPORT",
+      "Batch Execution Summary",
+      "Exception Breakdown & Verification Status",
+      "Verification of Existing AI Analyses",
+      "Human Finance Controller Investigation Priorities (Risk-Prioritized)",
+    ];
+
+    const isHeading = headingWords.some(
+      (heading) =>
+        clean.toLowerCase() === heading.toLowerCase()
+    );
+
+    if (isHeading) {
+      return (
+        <h4
+          key={index}
+          className="controller-summary-heading"
+        >
+          {clean}
+        </h4>
+      );
+    }
+
+    // Numbered priority items
+    if (/^\d+\./.test(line.trim())) {
+      return (
+        <div
+          key={index}
+          className="controller-summary-bullet"
+        >
+          <span>•</span>
+          <span>{clean}</span>
+        </div>
+      );
+    }
+
+    // Normal bullet / report line
+    if (
+      line.trim().startsWith("*") ||
+      line.trim().startsWith("-") ||
+      line.trim().startsWith("•")
+    ) {
+      return (
+        <div
+          key={index}
+          className="controller-summary-bullet"
+        >
+          <span>•</span>
+          <span>{clean}</span>
+        </div>
+      );
+    }
+
+    return (
+      <p
+        key={index}
+        className="controller-summary-text"
+      >
+        {clean}
+      </p>
+    );
+  });
+}
 function App() {
   const [batches, setBatches] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState(null);
@@ -14,6 +111,9 @@ function App() {
   const [aiLoading, setAiLoading] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiError, setAiError] = useState("");
+  const [controllerReport, setControllerReport] = useState(null);
+  const [controllerLoading, setControllerLoading] = useState(false);
+  const [controllerError, setControllerError] = useState("");
 
   const loadBatches = async () => {
     try {
@@ -41,6 +141,8 @@ function App() {
       setLoading(true);
       setAiAnalysis(null);
       setAiError("");
+      setControllerReport(null);
+      setControllerError("");
 
       const [
         metricsResponse,
@@ -187,10 +289,74 @@ function App() {
       setAiLoading(null);
     }
   };
+const runController = async () => {
+  if (!selectedBatch) {
+    return;
+  }
 
-  useEffect(() => {
-    loadBatches();
-  }, []);
+  try {
+    setControllerLoading(true);
+    setControllerError("");
+    setControllerReport(null);
+
+    const response = await fetch(
+      `${API}/batches/${selectedBatch}/controller/`,
+      {
+        method: "POST",
+      }
+    );
+
+    const data = await response.json();
+    console.log(
+      "CONTROLLER RESPONSE:",
+      data
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        data.detail ||
+          data.error ||
+          "Finance Controller failed."
+      );
+    }
+
+    setControllerReport(data);
+
+    // ------------------------------------------------
+    // REFRESH BATCH DATA AFTER CONTROLLER COMPLETES
+    //
+    // The Controller may have generated and saved
+    // new AIAnalysis records. Reload the exceptions
+    // so the UI shows the latest AI state.
+    // ------------------------------------------------
+
+    const exceptionsResponse = await fetch(
+      `${API}/batches/${selectedBatch}/exceptions/`
+    );
+
+    if (!exceptionsResponse.ok) {
+      throw new Error(
+        "Controller completed, but failed to refresh exceptions."
+      );
+    }
+
+    const exceptionsData =
+      await exceptionsResponse.json();
+
+    setExceptions(exceptionsData);
+
+  } catch (error) {
+    console.error(error);
+
+    setControllerError(
+      error.message ||
+        "Unable to run Finance Controller."
+    );
+
+  } finally {
+    setControllerLoading(false);
+  }
+};
 
   const totalRecords =
     metrics?.total_records ?? 0;
@@ -523,7 +689,266 @@ function App() {
               </div>
 
             </section>
+           <section className="section">
 
+  <div className="section-header">
+
+    <div>
+      <span className="eyebrow">
+        FINANCE CONTROLLER
+      </span>
+
+      <h3>
+        Controller Review
+      </h3>
+    </div>
+
+    <button
+      className="controller-button"
+      onClick={runController}
+      disabled={
+        controllerLoading ||
+        !selectedBatch
+      }
+    >
+      {controllerLoading
+        ? "Running Controller..."
+        : "Run Finance Controller"}
+    </button>
+
+  </div>
+
+  {controllerError && (
+    <div className="controller-error">
+      <strong>
+        Controller Failed
+      </strong>
+
+      <p>
+        {controllerError}
+      </p>
+    </div>
+  )}
+
+  {controllerReport && (
+    <div className="controller-card">
+      <div className="controller-safety-banner">
+  <strong>CONTROL SAFETY</strong>
+  <span>
+    Deterministic reconciliation remains the source of truth.
+    AI classifies and explains exceptions but cannot modify
+    financial results.
+  </span>
+</div>
+
+      <div className="controller-header">
+
+        <div>
+          <span className="eyebrow">
+            AGENT REPORT
+          </span>
+
+          <h3>
+            Finance Controller Result
+          </h3>
+        </div>
+
+        <span
+          className={`controller-status ${
+            controllerReport.llm_status ===
+            "AVAILABLE"
+              ? "available"
+              : "unavailable"
+          }`}
+        >
+          LLM{" "}
+          {controllerReport.llm_status}
+        </span>
+
+      </div>
+
+      <div className="controller-grid">
+
+        <div className="controller-field">
+          <span>
+            MATCH RATE
+          </span>
+
+          <strong>
+            {controllerReport.match_rate}%
+          </strong>
+        </div>
+
+        <div className="controller-field">
+          <span>
+            EXCEPTIONS ANALYZED
+          </span>
+
+          <strong>
+            {
+              controllerReport.agent
+                ?.exceptions_analyzed ?? 0
+            }
+          </strong>
+        </div>
+
+        <div className="controller-field">
+          <span>
+            CONFIRMED
+          </span>
+
+          <strong>
+            {
+              controllerReport.agent
+                ?.confirmed_exceptions ?? 0
+            }
+          </strong>
+        </div>
+
+        <div className="controller-field">
+          <span>
+            MANUAL REVIEW
+          </span>
+
+          <strong>
+            {
+              controllerReport.agent
+                ?.manual_review_required ?? 0
+            }
+          </strong>
+        </div>
+<div className="controller-field">
+  <span>HIGH RISK</span>
+
+  <strong>
+    {controllerReport.risk_summary?.high_risk_count ?? 0}
+  </strong>
+</div>
+      </div>
+      {controllerReport.risk_summary && (
+        <div className="risk-overview">
+
+          <div className="risk-overview-header">
+            <div>
+              <span className="controller-label">
+                RISK OVERVIEW
+              </span>
+
+              <h4>
+                Investigation Priority
+              </h4>
+            </div>
+
+            <span className="risk-total">
+              {(
+                controllerReport.risk_summary.high_risk_count +
+                controllerReport.risk_summary.medium_risk_count
+              )} EXCEPTIONS
+            </span>
+          </div>
+
+          <div className="risk-grid">
+
+            <div className="risk-card high-risk">
+              <span>
+                HIGH RISK
+              </span>
+
+              <strong>
+                {controllerReport.risk_summary.high_risk_count}
+              </strong>
+
+              <p>
+                Immediate investigation
+              </p>
+            </div>
+
+            <div className="risk-card medium-risk">
+              <span>
+                MEDIUM RISK
+              </span>
+
+              <strong>
+                {controllerReport.risk_summary.medium_risk_count}
+              </strong>
+
+              <p>
+                Additional evidence required
+              </p>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+      <div className="controller-details">
+
+        <div>
+          <span className="controller-label">
+            AGENT MODE
+          </span>
+
+          <p>
+            {controllerReport.agent_mode ||
+              "TOOL_USING_CONTROLLER"}
+          </p>
+        </div>
+
+        <div>
+          <span className="controller-label">
+            MODEL
+          </span>
+
+          <p>
+            {controllerReport.model}
+          </p>
+        </div>
+<div className="controller-summary">
+  <span className="controller-label">
+    AGENT SUMMARY
+  </span>
+
+  <div className="controller-summary-content">
+    {renderControllerSummary(
+      controllerReport.agent_summary
+    )}
+  </div>
+</div>
+
+      </div>
+
+      {controllerReport.tool_trace?.length > 0 && (
+        <div className="controller-tools">
+
+          <span className="controller-label">
+            TOOL TRACE
+          </span>
+
+          <ul>
+            {controllerReport.tool_trace.map(
+              (tool, index) => (
+                <li key={index}>
+                  <strong>
+                    {tool.tool}
+                  </strong>
+
+                  {" — "}
+
+                  {JSON.stringify(
+                    tool.arguments
+                  )}
+                </li>
+              )
+            )}
+          </ul>
+
+        </div>
+      )}
+
+    </div>
+  )}
+
+</section>
             <section className="section">
 
               <div className="section-header">
@@ -663,27 +1088,42 @@ function App() {
 
                             <td>
 
-                              <button
-                                className="ai-button"
-                                onClick={() =>
-                                  analyzeException(
-                                    item.id
-                                  )
-                                }
-                                disabled={
-                                  aiLoading ===
-                                  item.id
-                                }
-                              >
+  {item.ai_analysis ? (
 
-                                {aiLoading ===
-                                item.id
-                                  ? "Analyzing..."
-                                  : "✨ Analyze"}
+  <button
+    className="ai-analyzed-button"
+    onClick={() =>
+      setAiAnalysis(item.ai_analysis)
+    }
+  >
+    ✓ AI ANALYZED
+  </button>
 
-                              </button>
+) : (
 
-                            </td>
+    <button
+      className="ai-button"
+      onClick={() =>
+        analyzeException(
+          item.id
+        )
+      }
+      disabled={
+        aiLoading ===
+        item.id
+      }
+    >
+
+      {aiLoading ===
+      item.id
+        ? "Analyzing..."
+        : "✨ Analyze"}
+
+    </button>
+
+  )}
+
+</td>
 
                           </tr>
 
@@ -730,6 +1170,15 @@ function App() {
               <section className="section">
 
                 <div className="ai-analysis-card">
+                  <div className="ai-role-banner">
+  <strong>AI EXCEPTION ANALYSIS</strong>
+
+  <span>
+    AI explains and classifies deterministic exceptions using
+    evidence provided by the reconciliation system.
+    It does not calculate or override financial results.
+  </span>
+</div>
 
                   <div className="ai-analysis-header">
 
@@ -902,5 +1351,6 @@ function App() {
     </div>
   );
 }
+
 
 export default App;

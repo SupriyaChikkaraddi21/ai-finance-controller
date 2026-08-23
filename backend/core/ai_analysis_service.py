@@ -13,8 +13,8 @@ from .models import (
 load_dotenv()
 
 
-MODEL_NAME = "gemini-3.6-flash"
-PROMPT_VERSION = "v2"
+MODEL_NAME = "gemini-3.5-flash-lite"
+PROMPT_VERSION = "v3"
 
 
 def get_gemini_client():
@@ -227,16 +227,32 @@ Classification:
 
 Reason:
 The evidence explicitly shows the status conflict.
-
 Example 5:
-Payment amount is missing and payment status is MISSING
+
+A payment record is missing, OR a settlement record is missing,
+and the deterministic reconciliation exception identifies the
+missing payment or settlement.
 
 Classification:
 "MISSING_RECORD"
 
 Reason:
-The evidence explicitly indicates missing payment evidence.
+The deterministic evidence explicitly identifies a missing
+financial record.
 
+This includes BOTH:
+- MISSING_PAYMENT
+- MISSING_SETTLEMENT
+
+For MISSING_PAYMENT, classify the missing payment record
+as "MISSING_RECORD".
+
+For MISSING_SETTLEMENT, classify the missing settlement
+record as "MISSING_RECORD".
+
+Do NOT classify MISSING_SETTLEMENT as "STATUS_ISSUE"
+merely because the payment status is SUCCESS and the
+settlement status is MISSING.
 Example 6:
 The order ID is identified as a duplicate by the
 deterministic reconciliation system.
@@ -246,6 +262,39 @@ Classification:
 
 Reason:
 The deterministic evidence explicitly identifies duplication.
+DETERMINISTIC EXCEPTION MAPPING:
+
+When the evidence contains a deterministic exception type,
+follow this mapping:
+
+MISSING_PAYMENT
+→ "MISSING_RECORD"
+
+MISSING_SETTLEMENT
+→ "MISSING_RECORD"
+
+STATUS_MISMATCH
+→ "STATUS_ISSUE"
+
+DUPLICATE
+→ "DUPLICATE"
+
+UNKNOWN
+→ "UNKNOWN"
+
+The deterministic exception type must take precedence over
+secondary symptoms in the evidence.
+
+For example, if:
+- deterministic_exception = "MISSING_SETTLEMENT"
+- payment status = "SUCCESS"
+- settlement status = "MISSING"
+
+the classification MUST be:
+"MISSING_RECORD"
+
+It must NOT be:
+"STATUS_ISSUE"
 
 CONFIDENCE RULES:
 
@@ -466,3 +515,74 @@ def analyze_exception(
     )
 
     return ai_analysis
+def analyze_batch_exceptions(batch_id):
+    """
+    Analyze every deterministic exception in a batch
+    that does not already have an AI analysis.
+
+    Existing AI analyses are reused and are never
+    sent to Gemini again.
+    """
+
+    exceptions = (
+        ReconciliationResult.objects
+        .filter(
+            transaction__batch_id=batch_id,
+            result="EXCEPTION",
+        )
+        .select_related("transaction")
+        .order_by(
+            "transaction__transaction_id"
+        )
+    )
+
+    total = exceptions.count()
+
+    analyzed = 0
+    skipped = 0
+    failed = []
+
+    for reconciliation in exceptions:
+
+        # ----------------------------------------------------
+        # SKIP IF AI ANALYSIS ALREADY EXISTS
+        # ----------------------------------------------------
+
+        if hasattr(
+            reconciliation,
+            "ai_analysis",
+        ):
+            skipped += 1
+            continue
+
+        # ----------------------------------------------------
+        # ANALYZE ONLY MISSING AI RECORDS
+        # ----------------------------------------------------
+
+        try:
+
+            analyze_exception(
+                reconciliation.id
+            )
+
+            analyzed += 1
+
+        except Exception as error:
+
+            failed.append({
+                "reconciliation_id": (
+                    reconciliation.id
+                ),
+                "transaction_id": (
+                    reconciliation.transaction.transaction_id
+                ),
+                "error": str(error),
+            })
+
+    return {
+        "total": total,
+        "analyzed": analyzed,
+        "skipped": skipped,
+        "failed": len(failed),
+        "failures": failed,
+    }

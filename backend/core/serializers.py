@@ -45,36 +45,6 @@ class TransactionSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
-
-class ReconciliationResultSerializer(
-    serializers.ModelSerializer
-):
-    transaction_id = serializers.CharField(
-        source="transaction.transaction_id",
-        read_only=True,
-    )
-
-    order_id = serializers.CharField(
-        source="transaction.order_id",
-        read_only=True,
-    )
-
-    class Meta:
-        model = ReconciliationResult
-        fields = [
-            "id",
-            "transaction",
-            "transaction_id",
-            "order_id",
-            "result",
-            "exception_type",
-            "difference",
-            "requires_manual_review",
-            "rule_version",
-            "created_at",
-        ]
-
-
 class AIAnalysisSerializer(serializers.ModelSerializer):
     class Meta:
         model = AIAnalysis
@@ -90,6 +60,40 @@ class AIAnalysisSerializer(serializers.ModelSerializer):
             "prompt_version",
             "created_at",
         ]
+class ReconciliationResultSerializer(
+    serializers.ModelSerializer
+):
+    transaction_id = serializers.CharField(
+        source="transaction.transaction_id",
+        read_only=True,
+    )
+
+    order_id = serializers.CharField(
+        source="transaction.order_id",
+        read_only=True,
+    )
+
+    ai_analysis = AIAnalysisSerializer(
+        read_only=True,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = ReconciliationResult
+        fields = [
+            "id",
+            "transaction",
+            "transaction_id",
+            "order_id",
+            "result",
+            "exception_type",
+            "difference",
+            "requires_manual_review",
+            "rule_version",
+            "created_at",
+            "ai_analysis",
+        ]
+
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
