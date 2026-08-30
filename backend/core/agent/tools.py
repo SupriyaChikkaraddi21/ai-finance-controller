@@ -624,6 +624,7 @@ def build_controller_report(
         ),
         "agent": {
             "exceptions_investigated": analyzed,
+            "exceptions_analyzed": analyzed,
             "confirmed_exceptions": len(
                 confirmed
             ),
