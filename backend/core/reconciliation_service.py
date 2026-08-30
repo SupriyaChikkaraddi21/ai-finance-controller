@@ -4,7 +4,6 @@ import time
 from decimal import Decimal
 
 from django.utils import timezone
-
 from .models import (
     Batch,
     Transaction,
@@ -254,7 +253,7 @@ def reconcile_transaction(transaction):
             # that the amount differs, but if no
             # known rule explains the difference,
             # it becomes UNKNOWN.
-            exception_type = "UNKNOWN"
+            exception_type = "AMOUNT_MISMATCH"
 
         else:
 
@@ -283,7 +282,10 @@ def reconcile_batch(batch_id):
     batch = Batch.objects.get(
         id=batch_id
     )
-
+    if batch.status == "COMPLETED":
+        raise ValueError(
+            "This batch has already been reconciled."
+            )
     # ========================================================
     # MARK BATCH AS PROCESSING
     # ========================================================

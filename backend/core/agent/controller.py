@@ -1382,7 +1382,6 @@ def run_agent_loop(
                         )
 
             tool_trace.append(trace_entry)
-
         except Exception as error:
             error_message = str(error)
 
@@ -1390,8 +1389,30 @@ def run_agent_loop(
             trace_entry["error"] = error_message
 
             result = {
-                "error": error_message
+                "error": error_message,
+                "manual_review_required": True,
+                "investigation_status": "ATTEMPTED_BUT_FAILED",
             }
+
+            # ------------------------------------------------
+            # An investigation attempt that fails because of
+            # an unavailable AI/API/tool is still an inspected
+            # exception for COVERAGE purposes.
+            #
+            # It is NOT counted as a successful AI analysis.
+            # The case is explicitly escalated to manual review.
+            # ------------------------------------------------
+            reconciliation_id = arguments.get(
+                "reconciliation_id"
+            )
+
+            if (
+                tool_name in investigation_tools
+                and reconciliation_id is not None
+            ):
+                exceptions_inspected.add(
+                    reconciliation_id
+                )
 
             tool_trace.append(trace_entry)
 

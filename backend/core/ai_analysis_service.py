@@ -214,42 +214,45 @@ You MUST NOT:
 - infer a specific root cause merely because a numerical
   difference exists
 
-IMPORTANT UNKNOWN RULE:
+IMPORTANT AMOUNT DISCREPANCY RULE:
 
-A numerical difference by itself does NOT prove
-the cause of an exception.
+If the deterministic reconciliation exception type is
+"AMOUNT_MISMATCH", classify the exception as:
 
-If the evidence shows that actual settlement differs
-from expected settlement, but the evidence does NOT
-identify a specific reason for that difference,
-you MUST classify the exception as:
+"AMOUNT_DISCREPANCY"
+
+The deterministic engine has already established that
+the actual settlement differs from the expected settlement.
+
+Do NOT invent or claim a specific root cause for the
+difference unless that cause is explicitly present in
+the evidence.
+
+"AMOUNT_DISCREPANCY" means that an amount difference
+has been deterministically established; it does NOT
+mean that the AI knows the root cause.
+
+If the deterministic exception type is "UNKNOWN",
+classify it as:
 
 "UNKNOWN"
-
-Do NOT classify such a case as
-"AMOUNT_DISCREPANCY" merely because a difference exists.
-
-Use "AMOUNT_DISCREPANCY" only when the evidence
-supports a genuine identifiable amount-related
-discrepancy.
-
 Examples:
 
 Example 1:
+
 Expected settlement = 1000
 Actual settlement = 980
-No refund
-No adjustment
-No additional fee
-No other evidence explaining the 20 difference
+Deterministic exception = AMOUNT_MISMATCH
+No specific root cause is identified.
 
 Classification:
-"UNKNOWN"
+"AMOUNT_DISCREPANCY"
 
 Reason:
-The system knows that 20 is missing, but the evidence
-does not establish WHY it is missing.
+The deterministic engine has established that the actual
+settlement differs from the expected settlement.
 
+The AI must not invent the cause of the difference.
 Example 2:
 Expected settlement = 1000
 Actual settlement = 980
@@ -334,6 +337,9 @@ STATUS_MISMATCH
 
 DUPLICATE
 → "DUPLICATE"
+
+AMOUNT_MISMATCH
+→ "AMOUNT_DISCREPANCY"
 
 UNKNOWN
 → "UNKNOWN"
