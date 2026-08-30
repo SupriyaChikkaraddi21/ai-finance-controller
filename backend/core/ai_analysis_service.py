@@ -1,6 +1,6 @@
 import json
 import os
-
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -15,7 +15,63 @@ load_dotenv()
 
 MODEL_NAME = "gemini-3.5-flash-lite"
 PROMPT_VERSION = "v3"
+API_FAILURE_FILE = os.path.join(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            )
+        )
+    ),
+    "data",
+    "ai_api_failures.json",
+)
 
+def record_api_failure(
+    reconciliation_id,
+    error,
+):
+    """Record a Gemini API failure for evaluation."""
+
+    try:
+        with open(
+            API_FAILURE_FILE,
+            "r",
+            encoding="utf-8",
+        ) as file:
+            failures = json.load(file)
+
+    except (
+        FileNotFoundError,
+        json.JSONDecodeError,
+    ):
+        failures = []
+
+    failures.append(
+        {
+            "timestamp": datetime.now(
+                timezone.utc
+            ).isoformat(),
+            "reconciliation_id": (
+                reconciliation_id
+            ),
+            "model_name": MODEL_NAME,
+            "prompt_version": PROMPT_VERSION,
+            "error_type": type(error).__name__,
+            "error": str(error),
+        }
+    )
+
+    with open(
+        API_FAILURE_FILE,
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            failures,
+            file,
+            indent=4,
+        )
 
 def get_gemini_client():
     """
@@ -451,14 +507,22 @@ def analyze_exception(
 
     client = get_gemini_client()
 
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.1,
-        ),
-    )
+    try:
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.1,
+            ),
+        )
+
+    except Exception as error:
+        record_api_failure(
+            reconciliation_id,
+            error,
+        )
+        raise
 
     if not response.text:
         raise ValueError(

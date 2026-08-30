@@ -16,7 +16,6 @@ from .serializers import (
 from .reconciliation_service import reconcile_batch
 from .ai_analysis_service import (
     analyze_exception,
-    analyze_batch_exceptions,
 )
 
 
@@ -82,39 +81,12 @@ class BatchReconcileView(APIView):
         try:
 
             # ============================================
-            # STEP 1 — DETERMINISTIC RECONCILIATION
+            # DETERMINISTIC RECONCILIATION ONLY
             # ============================================
 
             batch = reconcile_batch(
                 batch.id
             )
-
-            # ============================================
-            # STEP 2 — AI ANALYSIS FOR ALL EXCEPTIONS
-            # ============================================
-
-            ai_result = analyze_batch_exceptions(
-                batch.id
-            )
-
-            # ============================================
-            # STEP 3 — FINANCE CONTROLLER
-            # ============================================
-
-            controller_report = None
-            controller_error = None
-
-            try:
-
-                controller_report = (
-                    run_controller_agent(
-                        batch.id
-                    )
-                )
-
-            except Exception as error:
-
-                controller_error = str(error)
 
             # ============================================
             # RESPONSE
@@ -123,16 +95,6 @@ class BatchReconcileView(APIView):
             response_data = BatchSerializer(
                 batch
             ).data
-
-            response_data["ai_analysis"] = ai_result
-
-            response_data["controller"] = (
-                controller_report
-            )
-
-            response_data["controller_error"] = (
-                controller_error
-            )
 
             return Response(
                 response_data,
@@ -153,7 +115,6 @@ class BatchReconcileView(APIView):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 class BatchResultsView(APIView):
 
     def get(self, request, batch_id):

@@ -1,0 +1,26 @@
+[
+    {
+        "timestamp": "2026-08-29T17:42:24.894910+00:00",
+        "reconciliation_id": 7196,
+        "model_name": "gemini-3.5-flash-lite",
+        "prompt_version": "v3",
+        "error_type": "ConnectError",
+        "error": "[Errno -3] Temporary failure in name resolution"
+    },
+    {
+        "timestamp": "2026-08-29T17:43:42.653139+00:00",
+        "reconciliation_id": 7196,
+        "model_name": "gemini-3.5-flash-lite",
+        "prompt_version": "v3",
+        "error_type": "ConnectError",
+        "error": "[Errno -3] Temporary failure in name resolution"
+    },
+    {
+        "timestamp": "2026-08-29T17:44:57.325203+00:00",
+        "reconciliation_id": 7198,
+        "model_name": "gemini-3.5-flash-lite",
+        "prompt_version": "v3",
+        "error_type": "ConnectError",
+        "error": "[Errno -3] Temporary failure in name resolution"
+    }
+]

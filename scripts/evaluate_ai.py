@@ -56,6 +56,11 @@ OUTPUT_FILE = os.path.join(
     "data",
     "ai_evaluation_results.json",
 )
+API_FAILURE_FILE = os.path.join(
+    BASE_DIR,
+    "data",
+    "ai_api_failures.json",
+)
 
 
 # ============================================================
@@ -132,6 +137,36 @@ def main():
     print(
         f"Exceptions    : {total_exceptions}"
     )
+
+    # --------------------------------------------------------
+    # Load recorded API failures
+    # --------------------------------------------------------
+
+    try:
+        with open(
+            API_FAILURE_FILE,
+            "r",
+            encoding="utf-8",
+        ) as file:
+            api_failures = json.load(file)
+
+    except (
+        FileNotFoundError,
+        json.JSONDecodeError,
+    ):
+        api_failures = []
+
+    reconciliation_ids = {
+        reconciliation.id
+        for reconciliation in exceptions
+    }
+
+    batch_api_failures = [
+        failure
+        for failure in api_failures
+        if failure.get("reconciliation_id")
+        in reconciliation_ids
+    ]
 
     # --------------------------------------------------------
     # Counters
@@ -634,12 +669,29 @@ def main():
             f"{classification:25}"
             f"{count:5}"
         )
+    print()
+    print("API FAILURE SUMMARY")
+    print("----------------------------------------")
+    print(
+        f"API failures          : "
+        f"{len(batch_api_failures)}"
+    )
 
+    for failure in batch_api_failures:
+        print(
+            f"Reconciliation {failure.get('reconciliation_id')}: "
+            f"{failure.get('error_type')} - "
+            f"{failure.get('error')}"
+        )
     # ========================================================
     # SAVE REPORT
     # ========================================================
 
     report = {
+        "api_failures": {
+            "count": len(batch_api_failures),
+            "failures": batch_api_failures,
+        },
 
         "evaluation_type": (
             "Evaluation of persisted AI exception "

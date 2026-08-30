@@ -207,19 +207,31 @@ function App() {
       }
 
       const batch =
-        await createResponse.json();
+  await createResponse.json();
 
-      setMessage(
-        "Batch created. Running reconciliation..."
-      );
+console.log("🔥 CREATED BATCH:", batch);
 
-      const reconcileResponse =
-        await fetch(
-          `${API}/batches/${batch.id}/reconcile/`,
-          {
-            method: "POST",
-          }
-        );
+setMessage(
+  "Batch created. Running reconciliation..."
+);
+
+console.log(
+  "🔥 STARTING RECONCILIATION:",
+  `${API}/batches/${batch.id}/reconcile/`
+);
+
+const reconcileResponse =
+  await fetch(
+    `${API}/batches/${batch.id}/reconcile/`,
+    {
+      method: "POST",
+    }
+  );
+
+console.log(
+  "🔥 RECONCILIATION RESPONSE:",
+  reconcileResponse.status
+);
 
       if (!reconcileResponse.ok) {
         throw new Error(
@@ -269,6 +281,14 @@ function App() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 503 && data.error === "AI analysis unavailable.") {
+          throw new Error(
+            "Gemini API quota has been exhausted. " +
+            "Deterministic reconciliation remains authoritative. " +
+            "Manual review is required."
+          );
+        }
+
         throw new Error(
           data.details ||
             data.error ||
@@ -372,6 +392,20 @@ const runController = async () => {
 
   const exceptionRate =
     metrics?.exception_rate ?? 0;
+
+  const controllerHighRiskCount =
+    controllerReport?.tool_trace?.filter(
+      (trace) =>
+        trace.type === "EXISTING_ANALYSIS_REUSED" &&
+        trace.risk?.risk_level === "HIGH"
+    ).length ?? 0;
+
+  const controllerMediumRiskCount =
+    controllerReport?.tool_trace?.filter(
+      (trace) =>
+        trace.type === "EXISTING_ANALYSIS_REUSED" &&
+        trace.risk?.risk_level === "MEDIUM"
+    ).length ?? 0;
 
   const exceptionCounts =
     exceptions.reduce((acc, item) => {
@@ -781,13 +815,13 @@ const runController = async () => {
 
         <div className="controller-field">
           <span>
-            EXCEPTIONS ANALYZED
+            TOTAL EXCEPTIONS
           </span>
 
           <strong>
             {
-              controllerReport.agent
-                ?.exceptions_analyzed ?? 0
+              controllerReport.investigation
+                ?.exceptions_available ?? 0
             }
           </strong>
         </div>
@@ -817,15 +851,17 @@ const runController = async () => {
             }
           </strong>
         </div>
-<div className="controller-field">
-  <span>HIGH RISK</span>
+        <div className="controller-field">
+          <span>
+            HIGH RISK
+          </span>
 
-  <strong>
-    {controllerReport.risk_summary?.high_risk_count ?? 0}
-  </strong>
-</div>
+          <strong>
+            {controllerHighRiskCount}
+          </strong>
+        </div>
       </div>
-      {controllerReport.risk_summary && (
+      {controllerReport.tool_trace?.length > 0 && (
         <div className="risk-overview">
 
           <div className="risk-overview-header">
@@ -840,10 +876,9 @@ const runController = async () => {
             </div>
 
             <span className="risk-total">
-              {(
-                controllerReport.risk_summary.high_risk_count +
-                controllerReport.risk_summary.medium_risk_count
-              )} EXCEPTIONS
+              {controllerHighRiskCount +
+                controllerMediumRiskCount}{" "}
+              EXCEPTIONS
             </span>
           </div>
 
@@ -855,7 +890,7 @@ const runController = async () => {
               </span>
 
               <strong>
-                {controllerReport.risk_summary.high_risk_count}
+                {controllerHighRiskCount}
               </strong>
 
               <p>
@@ -869,7 +904,7 @@ const runController = async () => {
               </span>
 
               <strong>
-                {controllerReport.risk_summary.medium_risk_count}
+                {controllerMediumRiskCount}
               </strong>
 
               <p>
@@ -916,7 +951,86 @@ const runController = async () => {
 </div>
 
       </div>
+      {controllerReport.decision_audit && (
+        <div className="controller-decision">
 
+          <span className="controller-label">
+            CONTROL DECISION
+          </span>
+
+          <div className="controller-decision-grid">
+
+            <div>
+              <span>INVESTIGATION</span>
+
+              <strong>
+                {controllerReport.decision_audit
+                  .investigation_status}
+              </strong>
+            </div>
+
+            <div>
+              <span>COVERAGE</span>
+
+              <strong>
+                {controllerReport.decision_audit
+                  .coverage_percent}%
+              </strong>
+            </div>
+
+            <div>
+              <span>EXCEPTIONS INSPECTED</span>
+
+              <strong>
+                {controllerReport.decision_audit
+                  .exceptions_inspected}
+                {" / "}
+                {controllerReport.decision_audit
+                  .exceptions_available}
+              </strong>
+            </div>
+
+            <div>
+              <span>UNINSPECTED</span>
+
+              <strong>
+                {controllerReport.decision_audit
+                  .uninspected_exceptions}
+              </strong>
+            </div>
+
+            <div>
+              <span>FINALIZATION</span>
+
+              <strong>
+                {controllerReport.decision_audit
+                  .finalization_decision ||
+                  "NOT_FINALIZED"}
+              </strong>
+            </div>
+
+            <div>
+              <span>MANUAL REVIEW</span>
+
+              <strong>
+                {controllerReport.decision_audit
+                  .manual_review_required
+                  ? "REQUIRED"
+                  : "NOT REQUIRED"}
+              </strong>
+            </div>
+
+          </div>
+
+          <p className="controller-truth-source">
+            Financial truth:
+            {" "}
+            {controllerReport.decision_audit
+              .deterministic_truth_source}
+          </p>
+
+        </div>
+      )}
       {controllerReport.tool_trace?.length > 0 && (
         <div className="controller-tools">
 
@@ -926,19 +1040,165 @@ const runController = async () => {
 
           <ul>
             {controllerReport.tool_trace.map(
-              (tool, index) => (
-                <li key={index}>
-                  <strong>
-                    {tool.tool}
-                  </strong>
+              (trace, index) => {
 
-                  {" — "}
+                const type =
+                  trace.type || "UNKNOWN";
 
-                  {JSON.stringify(
-                    tool.arguments
-                  )}
-                </li>
-              )
+                return (
+                  <li key={index}>
+
+                    {trace.step > 0 && (
+  <>
+    <strong>
+      STEP {trace.step}
+    </strong>
+
+    {"  "}
+  </>
+)}
+                    {type === "TOOL_CALL" && (
+                      <>
+                        <strong>
+                          TOOL
+                        </strong>
+
+                        {" — "}
+
+                        <strong>
+                          {trace.tool}
+                        </strong>
+
+                        {" — "}
+
+                        <span>
+                          {trace.status}
+                        </span>
+
+                        {trace.arguments &&
+                          Object.keys(
+                            trace.arguments
+                          ).length > 0 && (
+                            <>
+                              {" — "}
+
+                              <span>
+                                {JSON.stringify(
+                                  trace.arguments
+                                )}
+                              </span>
+                            </>
+                          )}
+                      </>
+                    )}
+
+                    {type === "FINALIZE" && (
+                      <>
+                        <strong>
+                          FINALIZE
+                        </strong>
+
+                        {" — "}
+
+                        <span>
+                          {trace.decision ||
+                            "FINALIZED"}
+                        </span>
+
+                        {" — "}
+
+                        <span>
+                          {trace.status}
+                        </span>
+
+                        {trace.coverage !==
+                          undefined && (
+                          <>
+                            {" — Coverage: "}
+                            {trace.coverage}%
+                          </>
+                        )}
+                      </>
+                    )}
+                    {type === "EXISTING_ANALYSIS_REUSED" && (
+                      <>
+                        <strong>
+                          EXISTING ANALYSIS REUSED
+                        </strong>
+
+                        {" — "}
+
+                        <span>
+                          RECONCILIATION #
+                          {trace.reconciliation_id}
+                        </span>
+
+                        {" — "}
+
+                        <span>
+                          {trace.analysis?.classification ||
+                            "UNKNOWN"}
+                        </span>
+
+                        {" — "}
+
+                        <span>
+                          {trace.verification?.resolution ||
+                            "UNVERIFIED"}
+                        </span>
+
+                        {" — "}
+
+                        <span>
+                          {trace.risk?.risk_level ||
+                            "UNKNOWN"}{" "}
+                          RISK
+                        </span>
+
+                        {" — "}
+
+                        <span>
+                          {trace.status || "UNKNOWN"}
+                        </span>
+                      </>
+                    )}
+                    {type === "SAFETY_STOP" && (
+                      <>
+                        <strong>
+                          SAFETY STOP
+                        </strong>
+
+                        {" — "}
+
+                        <span>
+                          {trace.status}
+                        </span>
+
+                        {" — "}
+
+                        <span>
+                          {trace.reason}
+                        </span>
+                      </>
+                    )}
+
+                    {type === "MODEL_ERROR" && (
+                      <>
+                        <strong>
+                          MODEL ERROR
+                        </strong>
+
+                        {" — "}
+
+                        <span>
+                          {trace.error}
+                        </span>
+                      </>
+                    )}
+
+                  </li>
+                );
+              }
             )}
           </ul>
 

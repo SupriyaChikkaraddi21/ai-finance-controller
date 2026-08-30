@@ -93,6 +93,136 @@ def get_batch_exceptions(batch_id):
         }
         for result in results
     ]
+# ============================================================
+# TOOL — INSPECT INVESTIGATION SCOPE
+# ============================================================
+
+def inspect_investigation_scope(
+    batch_id
+):
+    """
+    Build a deterministic investigation snapshot for the
+    exception population in a reconciliation batch.
+
+    This tool provides population-level deterministic context.
+    It does not perform AI analysis, verification, or risk
+    assessment for every exception.
+    """
+
+    exceptions = get_batch_exceptions(
+        batch_id
+    )
+
+    high_risk = []
+    medium_risk = []
+    manual_review = []
+
+    for exception in exceptions:
+
+        exception_type = (
+            exception["exception_type"]
+        )
+
+        difference = exception["difference"]
+
+        item = {
+            "reconciliation_id": (
+                exception["reconciliation_id"]
+            ),
+            "transaction_id": (
+                exception["transaction_id"]
+            ),
+            "order_id": (
+                exception["order_id"]
+            ),
+            "exception_type": exception_type,
+            "difference": difference,
+            "requires_manual_review": (
+                exception["requires_manual_review"]
+            ),
+        }
+
+        # Deterministic risk prioritization.
+        if exception_type in {
+            "MISSING_PAYMENT",
+            "MISSING_SETTLEMENT",
+            "DUPLICATE",
+        }:
+            item["risk_level"] = "HIGH"
+            high_risk.append(item)
+
+        elif exception_type in {
+            "STATUS_MISMATCH",
+            "AMOUNT_MISMATCH",
+            "CALCULATION_MISMATCH",
+            "UNKNOWN",
+        }:
+            item["risk_level"] = "MEDIUM"
+            medium_risk.append(item)
+
+        elif difference is not None:
+            try:
+                if abs(float(difference)) >= 100:
+                    item["risk_level"] = "HIGH"
+                    high_risk.append(item)
+                elif float(difference) > 0:
+                    item["risk_level"] = "MEDIUM"
+                    medium_risk.append(item)
+                else:
+                    item["risk_level"] = "LOW"
+            except (TypeError, ValueError):
+                item["risk_level"] = "LOW"
+
+        else:
+            item["risk_level"] = "LOW"
+
+        if (
+            item["requires_manual_review"]
+            or item["risk_level"] == "HIGH"
+        ):
+            manual_review.append(item)
+
+    return {
+        "batch_id": batch_id,
+        "exceptions_available": len(
+            exceptions
+        ),
+        "high_risk_count": len(
+            high_risk
+        ),
+        "medium_risk_count": len(
+            medium_risk
+        ),
+        "manual_review_count": len(
+            manual_review
+        ),
+        "exceptions": [
+            {
+                **exception,
+                "risk_level": (
+                    "HIGH"
+                    if exception["exception_type"]
+                    in {
+                        "MISSING_PAYMENT",
+                        "MISSING_SETTLEMENT",
+                        "DUPLICATE",
+                    }
+                    else (
+                        "MEDIUM"
+                        if exception["exception_type"]
+                        in {
+                            "STATUS_MISMATCH",
+                            "AMOUNT_MISMATCH",
+                            "CALCULATION_MISMATCH",
+                            "UNKNOWN",
+                        }
+                        else "LOW"
+                    )
+                ),
+            }
+            for exception in exceptions
+        ],
+    }
 
 
 # ============================================================
@@ -493,14 +623,14 @@ def build_controller_report(
             batch.match_rate
         ),
         "agent": {
-            "exceptions_analyzed": analyzed,
+            "exceptions_investigated": analyzed,
             "confirmed_exceptions": len(
                 confirmed
             ),
             "manual_review_required": len(
                 manual_review
             ),
-            "analysis_coverage": (
+            "investigation_coverage": (
                 round(
                     (
                         analyzed
