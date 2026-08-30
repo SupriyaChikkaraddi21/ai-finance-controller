@@ -550,6 +550,39 @@ def main():
             "support": support,
         }
     # ========================================================
+    # MACRO-AVERAGED METRICS
+    # ========================================================
+
+    macro_precision = (
+        sum(
+            values["precision"]
+            for values in ai_metrics.values()
+        )
+        / len(ai_metrics)
+        if ai_metrics
+        else 0
+    )
+
+    macro_recall = (
+        sum(
+            values["recall"]
+            for values in ai_metrics.values()
+        )
+        / len(ai_metrics)
+        if ai_metrics
+        else 0
+    )
+
+    macro_f1 = (
+        sum(
+            values["f1"]
+            for values in ai_metrics.values()
+        )
+        / len(ai_metrics)
+        if ai_metrics
+        else 0
+    )
+    # ========================================================
     # PRINT SUMMARY
     # ========================================================
     print()
@@ -737,9 +770,24 @@ def main():
                 average_confidence,
                 4,
             ),
-            "per_class_metrics":ai_metrics,
+            "per_class_metrics": ai_metrics,
 
-            "confusion_matrix":ai_confusion,
+            "macro_precision": round(
+                macro_precision,
+                4,
+            ),
+
+            "macro_recall": round(
+                macro_recall,
+                4,
+            ),
+
+            "macro_f1": round(
+                macro_f1,
+                4,
+            ),
+
+            "confusion_matrix": ai_confusion,
 
         },
 
