@@ -936,7 +936,218 @@ def test_malformed_ai_response():
             f"Malformed AI response test crashed: "
             f"{error}"
         )
+# ============================================================
+# TEST 8 — AI CLASSIFICATION CONTRACT
+# ============================================================
+def test_ai_classification_contract():
+    """
+    Verify that the AI prompt explicitly enforces the
+    deterministic exception-to-classification contract
+    and correctly carries UNKNOWN evidence.
+    """
 
+    print()
+    print("TEST 8 — AI CLASSIFICATION CONTRACT")
+    print("----------------------------------------")
+
+    backend_dir = os.path.join(
+        BASE_DIR,
+        "backend"
+    )
+
+    if backend_dir not in sys.path:
+        sys.path.insert(
+            0,
+            backend_dir
+        )
+
+    os.environ.setdefault(
+        "DJANGO_SETTINGS_MODULE",
+        "config.settings"
+    )
+
+    import django
+    django.setup()
+
+    from core.ai_analysis_service import build_prompt
+
+    test_evidence = {
+        "transaction_id": "TEST001",
+        "order_id": "ORD001",
+        "payment_amount": "1000.00",
+        "fee": "20.00",
+        "refund": "0.00",
+        "adjustment": "0.00",
+        "expected_settlement": "980.00",
+        "actual_settlement": "960.00",
+        "payment_status": "SUCCESS",
+        "settlement_status": "SETTLED",
+        "deterministic_result": "EXCEPTION",
+        "deterministic_exception": "UNKNOWN",
+        "difference": "-20.00",
+        "requires_manual_review": True,
+        "rule_version": "v1",
+    }
+
+    try:
+
+        prompt = build_prompt(
+            test_evidence
+        )
+
+        # ----------------------------------------------------
+        # Verify deterministic exception mappings
+        # ----------------------------------------------------
+
+        required_mappings = [
+            (
+                "MISSING_PAYMENT",
+                '"MISSING_RECORD"',
+            ),
+            (
+                "MISSING_SETTLEMENT",
+                '"MISSING_RECORD"',
+            ),
+            (
+                "STATUS_MISMATCH",
+                '"STATUS_ISSUE"',
+            ),
+            (
+                "DUPLICATE",
+                '"DUPLICATE"',
+            ),
+            (
+                "UNKNOWN",
+                '"UNKNOWN"',
+            ),
+        ]
+
+        missing_mappings = []
+
+        for exception_type, classification in (
+            required_mappings
+        ):
+
+            if (
+                exception_type not in prompt
+                or classification not in prompt
+            ):
+                missing_mappings.append(
+                    (
+                        exception_type,
+                        classification,
+                    )
+                )
+
+        if missing_mappings:
+
+            print("FAIL")
+
+            print(
+                "AI prompt is missing required "
+                "classification mappings:"
+            )
+
+            print(
+                missing_mappings
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # Verify UNKNOWN numerical-difference safeguard
+        # ----------------------------------------------------
+
+        unknown_safeguard = (
+            "A numerical difference by itself does NOT prove"
+            in prompt
+            and
+            "you MUST classify the exception as:"
+            in prompt
+            and
+            '"UNKNOWN"'
+            in prompt
+            and
+            "Do NOT classify such a case as"
+            in prompt
+            and
+            "AMOUNT_DISCREPANCY"
+            in prompt
+        )
+
+        if not unknown_safeguard:
+
+            print("FAIL")
+
+            print(
+                "AI prompt does not contain the "
+                "UNKNOWN numerical-difference safeguard."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # Verify actual UNKNOWN evidence is included
+        # ----------------------------------------------------
+
+        required_evidence = [
+            '"deterministic_exception": "UNKNOWN"',
+            '"difference": "-20.00"',
+            '"expected_settlement": "980.00"',
+            '"actual_settlement": "960.00"',
+            '"requires_manual_review": true',
+        ]
+
+        missing_evidence = [
+            item
+            for item in required_evidence
+            if item not in prompt
+        ]
+
+        if missing_evidence:
+
+            print("FAIL")
+
+            print(
+                "AI prompt does not contain the "
+                "expected UNKNOWN evidence:"
+            )
+
+            print(
+                missing_evidence
+            )
+
+            return
+
+        print("PASS")
+
+        print(
+            "AI classification contract is present."
+        )
+
+        print(
+            "Deterministic exception mappings "
+            "are explicitly enforced."
+        )
+
+        print(
+            "UNKNOWN numerical-difference safeguard "
+            "is present."
+        )
+
+        print(
+            "UNKNOWN financial evidence is correctly "
+            "included in the prompt."
+        )
+
+    except Exception as error:
+
+        print("FAIL")
+
+        print(
+            f"AI classification contract test "
+            f"crashed: {error}"
+        )
 
 # ============================================================
 # MAIN
@@ -967,6 +1178,7 @@ def main():
     test_huge_discrepancy()
     test_ai_api_failure()
     test_malformed_ai_response()
+    test_ai_classification_contract()
 
     print()
     print("========================================")
