@@ -200,6 +200,15 @@ class BatchMetricsView(APIView):
             "processing_time_ms": (
                 batch.processing_time_ms
             ),
+            "throughput_records_per_sec": (
+    round(
+        batch.total_records
+        / (batch.processing_time_ms / 1000),
+        2,
+    )
+    if batch.processing_time_ms > 0
+    else 0
+),
         })
 
 

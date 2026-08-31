@@ -488,6 +488,15 @@ def reconcile_batch(batch_id):
         )
         * 1000
     )
+    throughput_records_per_sec = (
+    round(
+        total / (processing_time_ms / 1000),
+        2,
+    )
+    if processing_time_ms > 0
+    else 0
+)
+
 
     # ========================================================
     # UPDATE BATCH

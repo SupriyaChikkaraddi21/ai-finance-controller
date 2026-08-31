@@ -720,9 +720,28 @@ const runController = async () => {
 
                 </div>
 
+                <div className="metric-card">
+
+                  <span className="metric-label">
+                    THROUGHPUT
+                  </span>
+
+                  <strong className="metric-value">
+                    {metrics.throughput_records_per_sec}
+                    <small> records/s</small>
+                  </strong>
+
+                  <span className="metric-description">
+                    Deterministic
+                    reconciliation throughput
+                  </span>
+
+                </div>
+
               </div>
 
             </section>
+
            <section className="section">
 
   <div className="section-header">
