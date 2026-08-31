@@ -1294,3 +1294,96 @@ tbody tr:hover {
     flex-direction: column;
   }
 }
+/* =========================================================
+   CONTROLLER DECISION AUDIT
+   ========================================================= */
+
+.controller-decision {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #e1e6ea;
+  border-radius: 12px;
+  background: #fbfcfd;
+}
+
+.controller-decision > .controller-label {
+  margin-bottom: 14px;
+}
+
+.controller-decision-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.controller-decision-grid > div {
+  min-width: 0;
+  padding: 15px 16px;
+  background: white;
+  border: 1px solid #e3e8eb;
+  border-radius: 9px;
+}
+
+.controller-decision-grid > div > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #7f8b94;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+}
+
+.controller-decision-grid > div > strong {
+  display: block;
+  color: #202b32;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.controller-decision-grid > div:nth-child(1) strong,
+.controller-decision-grid > div:nth-child(5) strong {
+  color: #087443;
+}
+
+.controller-decision-grid > div:nth-child(2) strong {
+  color: #16845d;
+}
+
+.controller-decision-grid > div:nth-child(4) strong {
+  color: #303b43;
+}
+
+.controller-decision-grid > div:nth-child(6) strong {
+  color: #b85d3a;
+}
+
+.controller-truth-source {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #e8ecef;
+  color: #53606a;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.controller-truth-source strong {
+  color: #202b32;
+}
+
+/* Responsive controller decision */
+@media (max-width: 900px) {
+  .controller-decision-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .controller-decision {
+    padding: 16px;
+  }
+
+  .controller-decision-grid {
+    grid-template-columns: 1fr;
+  }
+}
