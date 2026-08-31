@@ -1,7 +1,22 @@
 import csv
 import os
+import sys
 import time
+sys.path.insert(
+    0,
+    os.path.join(
+        os.path.dirname(
+            os.path.dirname(
+                os.path.abspath(__file__)
+            )
+        ),
+        "backend",
+    ),
+)
 
+from core.reconciliation_rules import (
+    reconcile_transaction as apply_reconciliation_rules,
+)
 
 # ============================================================
 # PATHS
@@ -102,289 +117,6 @@ def to_float(value):
         raise ValueError(
             f"Invalid numeric value: '{value}'"
         )
-
-
-# ============================================================
-# RECONCILE ONE TRANSACTION
-# ============================================================
-
-def reconcile_transaction(transaction):
-    """
-    Apply deterministic reconciliation rules
-    to a single transaction.
-    """
-
-    transaction_id = transaction[
-        "transaction_id"
-    ]
-
-    payment = to_float(
-        transaction["payment_amount"]
-    )
-
-    fee = to_float(
-        transaction["fee"]
-    )
-
-    refund = to_float(
-        transaction["refund"]
-    )
-
-    adjustment = to_float(
-        transaction["adjustment"]
-    )
-
-    expected = to_float(
-        transaction["expected_settlement"]
-    )
-
-    actual = to_float(
-        transaction["actual_settlement"]
-    )
-
-    payment_status = transaction[
-        "payment_status"
-    ]
-
-    settlement_status = transaction[
-        "settlement_status"
-    ]
-
-    exceptions = []
-
-    # ========================================================
-    # RULE 1 — Missing Payment
-    # ========================================================
-
-    if (
-        payment_status == "MISSING"
-        or payment is None
-    ):
-
-        exceptions.append(
-            "MISSING_PAYMENT"
-        )
-
-    # ========================================================
-    # RULE 2 — Missing Settlement
-    # ========================================================
-
-    if (
-        settlement_status == "MISSING"
-        or actual is None
-    ):
-
-        exceptions.append(
-            "MISSING_SETTLEMENT"
-        )
-
-    # ========================================================
-    # RULE 3 — Settlement Calculation
-    # ========================================================
-
-    if payment is not None:
-
-        calculated_expected = round(
-            payment
-            - fee
-            - refund
-            + adjustment,
-            2
-        )
-
-        if expected is not None:
-
-            if (
-                abs(
-                    calculated_expected
-                    - expected
-                ) > 0.01
-            ):
-
-                exceptions.append(
-                    "CALCULATION_MISMATCH"
-                )
-
-    # ========================================================
-    # RULE 4 — Actual vs Expected Settlement
-    # ========================================================
-
-    difference = None
-
-    if (
-        actual is not None
-        and expected is not None
-    ):
-
-        difference = round(
-            actual - expected,
-            2
-        )
-
-        if abs(difference) > 0.01:
-
-            exceptions.append(
-                "AMOUNT_MISMATCH"
-            )
-
-    # ========================================================
-    # RULE 5 — Status Validation
-    # ========================================================
-
-    if (
-        payment_status == "SUCCESS"
-        and settlement_status == "FAILED"
-    ):
-
-        exceptions.append(
-            "STATUS_MISMATCH"
-        )
-
-    # ========================================================
-    # Remove duplicate exception labels
-    # ========================================================
-
-    exceptions = list(
-        dict.fromkeys(exceptions)
-    )
-
-    # ========================================================
-    # FINAL CLASSIFICATION
-    # ========================================================
-
-    if not exceptions:
-
-        result = "MATCHED"
-
-        exception_type = ""
-
-        requires_review = False
-
-    else:
-
-        result = "EXCEPTION"
-
-        requires_review = True
-
-        # ----------------------------------------------------
-        # Determine primary exception
-        # ----------------------------------------------------
-
-        if (
-            "MISSING_PAYMENT"
-            in exceptions
-        ):
-
-            exception_type = (
-                "MISSING_PAYMENT"
-            )
-
-        elif (
-            "MISSING_SETTLEMENT"
-            in exceptions
-        ):
-
-            exception_type = (
-                "MISSING_SETTLEMENT"
-            )
-
-        elif (
-            "CALCULATION_MISMATCH"
-            in exceptions
-        ):
-
-            exception_type = (
-                "CALCULATION_MISMATCH"
-            )
-
-        elif (
-            "STATUS_MISMATCH"
-            in exceptions
-        ):
-
-            exception_type = (
-                "STATUS_MISMATCH"
-            )
-
-        elif (
-            "AMOUNT_MISMATCH"
-            in exceptions
-        ):
-
-            exception_type = (
-                "AMOUNT_MISMATCH"
-            )
-
-        else:
-
-            exception_type = (
-                exceptions[0]
-            )
-
-    # ========================================================
-    # RESULT
-    # ========================================================
-
-    return {
-
-        "transaction_id": (
-            transaction_id
-        ),
-
-        "order_id": (
-            transaction["order_id"]
-        ),
-
-        "result": (
-            result
-        ),
-
-        "exception_type": (
-            exception_type
-        ),
-
-        "requires_manual_review": (
-            requires_review
-        ),
-
-        "payment_amount": (
-            payment
-        ),
-
-        "fee": (
-            fee
-        ),
-
-        "refund": (
-            refund
-        ),
-
-        "adjustment": (
-            adjustment
-        ),
-
-        "expected_settlement": (
-            expected
-        ),
-
-        "actual_settlement": (
-            actual
-        ),
-
-        "difference": (
-            difference
-        ),
-
-        "payment_status": (
-            payment_status
-        ),
-
-        "settlement_status": (
-            settlement_status
-        ),
-    }
-
-
 # ============================================================
 # MAIN
 # ============================================================
@@ -470,9 +202,49 @@ def main():
                 order_id
             )
 
-        result = reconcile_transaction(
+        result = apply_reconciliation_rules(
             transaction
         )
+
+        result["transaction_id"] = transaction[
+            "transaction_id"
+        ]
+
+        result["order_id"] = transaction[
+            "order_id"
+        ]
+
+        result["payment_amount"] = to_float(
+            transaction["payment_amount"]
+        )
+
+        result["fee"] = to_float(
+            transaction["fee"]
+        )
+
+        result["refund"] = to_float(
+            transaction["refund"]
+        )
+
+        result["adjustment"] = to_float(
+            transaction["adjustment"]
+        )
+
+        result["expected_settlement"] = to_float(
+            transaction["expected_settlement"]
+        )
+
+        result["actual_settlement"] = to_float(
+            transaction["actual_settlement"]
+        )
+
+        result["payment_status"] = transaction[
+            "payment_status"
+        ]
+
+        result["settlement_status"] = transaction[
+            "settlement_status"
+        ]
 
         # ----------------------------------------------------
         # Duplicate detection
