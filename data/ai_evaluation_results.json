@@ -1,13 +1,22 @@
 {
     "api_failures": {
-        "count": 0,
-        "failures": []
+        "count": 1,
+        "failures": [
+            {
+                "timestamp": "2026-08-31T09:47:16.549623+00:00",
+                "reconciliation_id": 8090,
+                "model_name": "gemini-3.5-flash-lite",
+                "prompt_version": "v3",
+                "error_type": "ServerError",
+                "error": "503 UNAVAILABLE. {'error': {'code': 503, 'message': 'The service is currently unavailable.', 'status': 'UNAVAILABLE'}}"
+            }
+        ]
     },
     "evaluation_type": "Evaluation of persisted AI exception analysis outputs against predefined classification mapping",
     "evaluation_method": "Persisted AIAnalysis records were evaluated. Gemini was NOT called during evaluation.",
     "batch": {
-        "id": 2,
-        "name": "Reconciliation Test Batch"
+        "id": 79,
+        "name": "Fresh End-to-End Test"
     },
     "dataset": {
         "total_exceptions": 25,
@@ -21,9 +30,15 @@
         "correct_classifications": 25,
         "wrong_classifications": 0,
         "classification_accuracy": 100.0,
-        "unknown_count": 12,
-        "average_confidence": 0.586,
+        "unknown_count": 0,
+        "average_confidence": 0.986,
         "per_class_metrics": {
+            "AMOUNT_DISCREPANCY": {
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+                "support": 12
+            },
             "DUPLICATE": {
                 "precision": 1.0,
                 "recall": 1.0,
@@ -41,41 +56,35 @@
                 "recall": 1.0,
                 "f1": 1.0,
                 "support": 3
-            },
-            "UNKNOWN": {
-                "precision": 1.0,
-                "recall": 1.0,
-                "f1": 1.0,
-                "support": 12
             }
         },
         "macro_precision": 1.0,
         "macro_recall": 1.0,
         "macro_f1": 1.0,
         "confusion_matrix": {
+            "AMOUNT_DISCREPANCY": {
+                "AMOUNT_DISCREPANCY": 12,
+                "DUPLICATE": 0,
+                "MISSING_RECORD": 0,
+                "STATUS_ISSUE": 0
+            },
             "DUPLICATE": {
+                "AMOUNT_DISCREPANCY": 0,
                 "DUPLICATE": 3,
                 "MISSING_RECORD": 0,
-                "STATUS_ISSUE": 0,
-                "UNKNOWN": 0
+                "STATUS_ISSUE": 0
             },
             "MISSING_RECORD": {
+                "AMOUNT_DISCREPANCY": 0,
                 "DUPLICATE": 0,
                 "MISSING_RECORD": 7,
-                "STATUS_ISSUE": 0,
-                "UNKNOWN": 0
+                "STATUS_ISSUE": 0
             },
             "STATUS_ISSUE": {
+                "AMOUNT_DISCREPANCY": 0,
                 "DUPLICATE": 0,
                 "MISSING_RECORD": 0,
-                "STATUS_ISSUE": 3,
-                "UNKNOWN": 0
-            },
-            "UNKNOWN": {
-                "DUPLICATE": 0,
-                "MISSING_RECORD": 0,
-                "STATUS_ISSUE": 0,
-                "UNKNOWN": 12
+                "STATUS_ISSUE": 3
             }
         }
     },
@@ -88,267 +97,267 @@
         "UNKNOWN": "UNKNOWN"
     },
     "classification_distribution": {
-        "UNKNOWN": 12,
         "MISSING_RECORD": 7,
+        "AMOUNT_DISCREPANCY": 12,
         "STATUS_ISSUE": 3,
         "DUPLICATE": 3
     },
     "records": [
         {
-            "reconciliation_id": 171,
-            "transaction_id": "TXN0071",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "reconciliation_id": 8076,
+            "transaction_id": "TXN0076",
+            "deterministic_exception": "MISSING_SETTLEMENT",
+            "expected_ai_classification": "MISSING_RECORD",
+            "actual_ai_classification": "MISSING_RECORD",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
-            "model_name": "gemini-3.5-flash-lite",
-            "prompt_version": "v2"
-        },
-        {
-            "reconciliation_id": 172,
-            "transaction_id": "TXN0072",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
-            "classification_status": "CORRECT",
-            "confidence": 0.2,
+            "confidence": 1.0,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 173,
-            "transaction_id": "TXN0073",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "reconciliation_id": 8077,
+            "transaction_id": "TXN0077",
+            "deterministic_exception": "MISSING_SETTLEMENT",
+            "expected_ai_classification": "MISSING_RECORD",
+            "actual_ai_classification": "MISSING_RECORD",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
-        },
-        {
-            "reconciliation_id": 174,
-            "transaction_id": "TXN0074",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
-            "classification_status": "CORRECT",
-            "confidence": 0.2,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
-        },
-        {
-            "reconciliation_id": 175,
-            "transaction_id": "TXN0075",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
-            "classification_status": "CORRECT",
-            "confidence": 0.2,
+            "confidence": 1.0,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 181,
+            "reconciliation_id": 8078,
+            "transaction_id": "TXN0078",
+            "deterministic_exception": "MISSING_SETTLEMENT",
+            "expected_ai_classification": "MISSING_RECORD",
+            "actual_ai_classification": "MISSING_RECORD",
+            "classification_status": "CORRECT",
+            "confidence": 1.0,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
+        },
+        {
+            "reconciliation_id": 8079,
+            "transaction_id": "TXN0079",
+            "deterministic_exception": "MISSING_SETTLEMENT",
+            "expected_ai_classification": "MISSING_RECORD",
+            "actual_ai_classification": "MISSING_RECORD",
+            "classification_status": "CORRECT",
+            "confidence": 1.0,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
+        },
+        {
+            "reconciliation_id": 8080,
+            "transaction_id": "TXN0080",
+            "deterministic_exception": "MISSING_PAYMENT",
+            "expected_ai_classification": "MISSING_RECORD",
+            "actual_ai_classification": "MISSING_RECORD",
+            "classification_status": "CORRECT",
+            "confidence": 1.0,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
+        },
+        {
+            "reconciliation_id": 8081,
             "transaction_id": "TXN0081",
-            "deterministic_exception": "MISSING_SETTLEMENT",
+            "deterministic_exception": "MISSING_PAYMENT",
             "expected_ai_classification": "MISSING_RECORD",
             "actual_ai_classification": "MISSING_RECORD",
             "classification_status": "CORRECT",
-            "confidence": 0.9,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
+            "confidence": 1.0,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 182,
+            "reconciliation_id": 8082,
             "transaction_id": "TXN0082",
-            "deterministic_exception": "MISSING_SETTLEMENT",
+            "deterministic_exception": "MISSING_PAYMENT",
             "expected_ai_classification": "MISSING_RECORD",
             "actual_ai_classification": "MISSING_RECORD",
+            "classification_status": "CORRECT",
+            "confidence": 1.0,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
+        },
+        {
+            "reconciliation_id": 8083,
+            "transaction_id": "TXN0083",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
+            "classification_status": "CORRECT",
+            "confidence": 1.0,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
+        },
+        {
+            "reconciliation_id": 8084,
+            "transaction_id": "TXN0084",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
             "confidence": 0.95,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 183,
-            "transaction_id": "TXN0083",
-            "deterministic_exception": "MISSING_SETTLEMENT",
-            "expected_ai_classification": "MISSING_RECORD",
-            "actual_ai_classification": "MISSING_RECORD",
-            "classification_status": "CORRECT",
-            "confidence": 0.9,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
-        },
-        {
-            "reconciliation_id": 184,
-            "transaction_id": "TXN0084",
-            "deterministic_exception": "MISSING_SETTLEMENT",
-            "expected_ai_classification": "MISSING_RECORD",
-            "actual_ai_classification": "MISSING_RECORD",
-            "classification_status": "CORRECT",
-            "confidence": 0.9,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
-        },
-        {
-            "reconciliation_id": 185,
+            "reconciliation_id": 8085,
             "transaction_id": "TXN0085",
-            "deterministic_exception": "MISSING_PAYMENT",
-            "expected_ai_classification": "MISSING_RECORD",
-            "actual_ai_classification": "MISSING_RECORD",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
-            "confidence": 0.9,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
+            "confidence": 1.0,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 186,
+            "reconciliation_id": 8086,
             "transaction_id": "TXN0086",
-            "deterministic_exception": "MISSING_PAYMENT",
-            "expected_ai_classification": "MISSING_RECORD",
-            "actual_ai_classification": "MISSING_RECORD",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
-            "confidence": 0.85,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
+            "confidence": 1.0,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 187,
+            "reconciliation_id": 8087,
             "transaction_id": "TXN0087",
-            "deterministic_exception": "MISSING_PAYMENT",
-            "expected_ai_classification": "MISSING_RECORD",
-            "actual_ai_classification": "MISSING_RECORD",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
-            "confidence": 0.9,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
+            "confidence": 0.95,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 188,
+            "reconciliation_id": 8088,
             "transaction_id": "TXN0088",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "deterministic_exception": "STATUS_MISMATCH",
+            "expected_ai_classification": "STATUS_ISSUE",
+            "actual_ai_classification": "STATUS_ISSUE",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
+            "confidence": 0.95,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 189,
+            "reconciliation_id": 8089,
             "transaction_id": "TXN0089",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "deterministic_exception": "STATUS_MISMATCH",
+            "expected_ai_classification": "STATUS_ISSUE",
+            "actual_ai_classification": "STATUS_ISSUE",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
+            "confidence": 1.0,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 190,
+            "reconciliation_id": 8090,
             "transaction_id": "TXN0090",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "deterministic_exception": "STATUS_MISMATCH",
+            "expected_ai_classification": "STATUS_ISSUE",
+            "actual_ai_classification": "STATUS_ISSUE",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
+            "confidence": 1.0,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 191,
+            "reconciliation_id": 8091,
             "transaction_id": "TXN0091",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
-            "model_name": "gemini-3.6-flash",
-            "prompt_version": "v1"
+            "confidence": 0.95,
+            "model_name": "gemini-3.5-flash-lite",
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 192,
+            "reconciliation_id": 8092,
             "transaction_id": "TXN0092",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
+            "confidence": 1.0,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 193,
+            "reconciliation_id": 8093,
             "transaction_id": "TXN0093",
-            "deterministic_exception": "STATUS_MISMATCH",
-            "expected_ai_classification": "STATUS_ISSUE",
-            "actual_ai_classification": "STATUS_ISSUE",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
             "confidence": 1.0,
             "model_name": "gemini-3.5-flash-lite",
-            "prompt_version": "v2"
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 194,
+            "reconciliation_id": 8094,
             "transaction_id": "TXN0094",
-            "deterministic_exception": "STATUS_MISMATCH",
-            "expected_ai_classification": "STATUS_ISSUE",
-            "actual_ai_classification": "STATUS_ISSUE",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
-            "confidence": 1.0,
+            "confidence": 0.95,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 195,
+            "reconciliation_id": 8095,
             "transaction_id": "TXN0095",
-            "deterministic_exception": "STATUS_MISMATCH",
-            "expected_ai_classification": "STATUS_ISSUE",
-            "actual_ai_classification": "STATUS_ISSUE",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
             "confidence": 1.0,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 196,
+            "reconciliation_id": 8096,
             "transaction_id": "TXN0096",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
+            "confidence": 0.95,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 197,
+            "reconciliation_id": 8097,
             "transaction_id": "TXN0097",
-            "deterministic_exception": "UNKNOWN",
-            "expected_ai_classification": "UNKNOWN",
-            "actual_ai_classification": "UNKNOWN",
+            "deterministic_exception": "AMOUNT_MISMATCH",
+            "expected_ai_classification": "AMOUNT_DISCREPANCY",
+            "actual_ai_classification": "AMOUNT_DISCREPANCY",
             "classification_status": "CORRECT",
-            "confidence": 0.2,
+            "confidence": 0.95,
             "model_name": "gemini-3.5-flash-lite",
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 198,
+            "reconciliation_id": 8098,
             "transaction_id": "TXN0098",
             "deterministic_exception": "DUPLICATE",
             "expected_ai_classification": "DUPLICATE",
             "actual_ai_classification": "DUPLICATE",
             "classification_status": "CORRECT",
-            "confidence": 0.95,
+            "confidence": 1.0,
             "model_name": "gemini-3.5-flash-lite",
-            "prompt_version": "v2"
+            "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 199,
+            "reconciliation_id": 8099,
             "transaction_id": "TXN0099",
             "deterministic_exception": "DUPLICATE",
             "expected_ai_classification": "DUPLICATE",
@@ -359,7 +368,7 @@
             "prompt_version": "v3"
         },
         {
-            "reconciliation_id": 200,
+            "reconciliation_id": 8100,
             "transaction_id": "TXN0100",
             "deterministic_exception": "DUPLICATE",
             "expected_ai_classification": "DUPLICATE",
