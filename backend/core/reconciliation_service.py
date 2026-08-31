@@ -3,6 +3,7 @@ import os
 import time
 from decimal import Decimal
 
+from django.db import transaction
 from django.utils import timezone
 from .models import (
     Batch,
@@ -44,7 +45,7 @@ TRANSACTIONS_FILE = os.path.join(
 # ============================================================
 # BATCH RECONCILIATION
 # ============================================================
-
+@transaction.atomic
 def reconcile_batch(batch_id):
     """
     Reconcile the complete CSV dataset and persist
@@ -52,7 +53,6 @@ def reconcile_batch(batch_id):
     """
 
     start_time = time.perf_counter()
-
     batch = Batch.objects.get(
         id=batch_id
     )
