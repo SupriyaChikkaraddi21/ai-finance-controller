@@ -1055,37 +1055,33 @@ def test_ai_classification_contract():
             return
 
         # ----------------------------------------------------
-        # Verify UNKNOWN numerical-difference safeguard
+        # Verify AMOUNT_MISMATCH classification contract
         # ----------------------------------------------------
 
-        unknown_safeguard = (
-            "A numerical difference by itself does NOT prove"
+        amount_mismatch_contract = (
+            "If the deterministic reconciliation exception type is"
             in prompt
             and
-            "you MUST classify the exception as:"
+            '"AMOUNT_MISMATCH"'
             in prompt
             and
-            '"UNKNOWN"'
+            '"AMOUNT_DISCREPANCY"'
             in prompt
             and
-            "Do NOT classify such a case as"
-            in prompt
-            and
-            "AMOUNT_DISCREPANCY"
+            "The AI must not invent the cause of the difference."
             in prompt
         )
 
-        if not unknown_safeguard:
+        if not amount_mismatch_contract:
 
             print("FAIL")
 
             print(
                 "AI prompt does not contain the "
-                "UNKNOWN numerical-difference safeguard."
+                "AMOUNT_MISMATCH classification contract."
             )
 
             return
-
         # ----------------------------------------------------
         # Verify actual UNKNOWN evidence is included
         # ----------------------------------------------------
