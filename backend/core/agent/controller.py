@@ -604,22 +604,26 @@ def run_agent_loop(
             risk = assess_exception_risk(
                 reconciliation_id
             )
+            risk_cache[reconciliation_id] = risk
 
             analyses_inspected.add(
                 reconciliation_id
             )
-            analyses_verified.add(
-                reconciliation_id
-            )
+
             risks_assessed.add(
                 reconciliation_id
             )
 
-            # This represents a completed review of the
-            # persisted AI analysis plus deterministic checks.
-            exceptions_inspected.add(
-                reconciliation_id
-            )
+            if verification.get("verified") is True:
+                analyses_verified.add(
+                    reconciliation_id
+                )
+
+                # A persisted analysis counts as investigated
+                # only after successful deterministic verification.
+                exceptions_inspected.add(
+                    reconciliation_id
+                )
 
             tool_trace.append(
                 {
@@ -1434,14 +1438,19 @@ def run_agent_loop(
                 "inspect_ai_analysis",
                 "analyze_exception",
                 "verify_analysis",
+                "assess_risk",
             }:
                 reconciliation_id = arguments.get(
                     "reconciliation_id"
                 )
 
                 if reconciliation_id is not None:
-                    exceptions_inspected.add(
-                        reconciliation_id
+                    reconciliation_id = int(
+                        float(
+                            str(
+                                reconciliation_id
+                            ).strip()
+                        )
                     )
 
                     if tool_name == "inspect_evidence":
@@ -1454,8 +1463,8 @@ def run_agent_loop(
                             reconciliation_id
                         )
 
-                    elif tool_name == "verify_analysis":
-                        analyses_verified.add(
+                    elif tool_name == "analyze_exception":
+                        analyses_inspected.add(
                             reconciliation_id
                         )
 
@@ -1463,6 +1472,18 @@ def run_agent_loop(
                         risks_assessed.add(
                             reconciliation_id
                         )
+
+                    elif tool_name == "verify_analysis":
+                        if (
+                            isinstance(result, dict)
+                            and result.get("verified") is True
+                        ):
+                            analyses_verified.add(
+                                reconciliation_id
+                            )
+                            exceptions_inspected.add(
+                                reconciliation_id
+                            )
 
             tool_trace.append(trace_entry)
         except Exception as error:
@@ -1478,24 +1499,14 @@ def run_agent_loop(
             }
 
             # ------------------------------------------------
-            # An investigation attempt that fails because of
-            # an unavailable AI/API/tool is still an inspected
-            # exception for COVERAGE purposes.
+            # Failed investigation attempts are NOT counted
+            # as completed investigation coverage.
             #
-            # It is NOT counted as a successful AI analysis.
-            # The case is explicitly escalated to manual review.
+            # The exception remains unresolved and is
+            # explicitly escalated to manual review.
+            # Only a successful verify_analysis result can
+            # add an exception to exceptions_inspected.
             # ------------------------------------------------
-            reconciliation_id = arguments.get(
-                "reconciliation_id"
-            )
-
-            if (
-                tool_name in investigation_tools
-                and reconciliation_id is not None
-            ):
-                exceptions_inspected.add(
-                    reconciliation_id
-                )
 
             tool_trace.append(trace_entry)
 
@@ -1673,23 +1684,20 @@ def run_controller_agent(
         "tool_trace"
     ]
 
-    # Only exceptions actually investigated by the controller
-    # are eligible for the controller's analysis report.
-    investigation_tools = {
-        "inspect_evidence",
-        "inspect_ai_analysis",
-        "analyze_exception",
-        "verify_analysis",
-        "assess_risk",
-    }
-
+    # Only successfully verified exceptions count as investigated.
+    # Inspecting evidence, AI analysis, or risk alone does not
+    # establish completed investigation coverage.
     inspected_reconciliation_ids = {
-        trace["arguments"]["reconciliation_id"]
+        trace.get("arguments", {}).get(
+            "reconciliation_id"
+        )
         for trace in tool_trace
         if (
             trace.get("type") == "TOOL_CALL"
-            and trace.get("tool") in investigation_tools
+            and trace.get("tool") == "verify_analysis"
             and trace.get("status") == "SUCCESS"
+            and isinstance(trace.get("result"), dict)
+            and trace.get("result", {}).get("verified") is True
             and trace.get("arguments", {}).get(
                 "reconciliation_id"
             ) is not None
@@ -1762,6 +1770,7 @@ def run_controller_agent(
 
     analyses = []
     all_risk_assessments = []
+    risk_cache = {}
 
     for exception in exceptions:
 
@@ -1770,10 +1779,14 @@ def run_controller_agent(
                 "reconciliation_id"
             ]
         )
+        risk = assess_risk(
+            reconciliation_id
+        )
+
+        risk_cache[reconciliation_id] = risk
+
         all_risk_assessments.append(
-            assess_risk(
-                reconciliation_id
-            )
+            risk
         )
         # Only exceptions actually investigated by the controller
         # are included in the agent analysis report.
@@ -1787,9 +1800,10 @@ def run_controller_agent(
             reconciliation_id
         )
 
-        risk = assess_risk(
+        risk = risk_cache[
             reconciliation_id
-        )
+        ]
+
 
         if not ai_analysis["available"]:
 
@@ -2136,11 +2150,10 @@ def run_controller_agent(
 
     population_high_risk = []
     population_medium_risk = []
-
     for exception in exceptions:
-        risk = assess_risk(
+        risk = risk_cache[
             exception["reconciliation_id"]
-        )
+        ]
 
         if risk["risk_level"] == "HIGH":
             population_high_risk.append(
