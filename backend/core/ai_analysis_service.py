@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-
 from .models import (
     AIAnalysis,
+    AuditLog,
     ReconciliationResult,
 )
 
@@ -592,6 +592,27 @@ def analyze_exception(
             },
         )
     )
+
+    if created:
+        AuditLog.objects.create(
+            batch=reconciliation.transaction.batch,
+            transaction=reconciliation.transaction,
+            action="AI_ANALYSIS_CREATED",
+            message=(
+                "AI analysis created for reconciliation exception."
+            ),
+            metadata={
+                "reconciliation_id": reconciliation.id,
+                "classification": ai_analysis.classification,
+                "confidence": (
+                    str(ai_analysis.confidence)
+                    if ai_analysis.confidence is not None
+                    else None
+                ),
+                "model_name": MODEL_NAME,
+                "prompt_version": PROMPT_VERSION,
+            },
+        )
 
     return ai_analysis
 def analyze_batch_exceptions(batch_id):

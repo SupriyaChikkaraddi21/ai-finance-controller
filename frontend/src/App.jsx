@@ -105,12 +105,14 @@ function App() {
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [exceptions, setExceptions] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   const [aiLoading, setAiLoading] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiError, setAiError] = useState("");
+  const [selectedException, setSelectedException] = useState(null);
   const [controllerReport, setControllerReport] = useState(null);
   const [controllerLoading, setControllerLoading] = useState(false);
   const [controllerError, setControllerError] = useState("");
@@ -1313,11 +1315,24 @@ const runController = async () => {
                     </thead>
 
                     <tbody>
-
                       {exceptions.map(
                         (item) => (
 
-                          <tr key={item.id}>
+                          <tr
+                            key={item.id}
+                            className={
+                              selectedException?.id === item.id
+                                ? "exception-row-selected"
+                                : ""
+                            }
+                            onClick={() => {
+                              setSelectedException(item);
+                              setAiAnalysis(
+                                item.ai_analysis || null
+                              );
+                              setAiError("");
+                            }}
+                          >
 
                             <td className="transaction-id">
                               {item.transaction_id}
@@ -1363,9 +1378,10 @@ const runController = async () => {
 
   <button
     className="ai-analyzed-button"
-    onClick={() =>
-      setAiAnalysis(item.ai_analysis)
-    }
+    onClick={(event) => {
+      event.stopPropagation();
+      setAiAnalysis(item.ai_analysis);
+    }}
   >
     ✓ AI ANALYZED
   </button>
@@ -1374,11 +1390,10 @@ const runController = async () => {
 
     <button
       className="ai-button"
-      onClick={() =>
-        analyzeException(
-          item.id
-        )
-      }
+      onClick={(event) => {
+        event.stopPropagation();
+        analyzeException(item.id);
+      }}
       disabled={
         aiLoading ===
         item.id
@@ -1419,7 +1434,198 @@ const runController = async () => {
               </div>
 
             </section>
+            {selectedException && (
+              <section className="section">
 
+                <div className="investigation-card">
+
+                  <div className="investigation-header">
+
+                    <div>
+                      <span className="eyebrow">
+                        STEP 1 · DETERMINISTIC INVESTIGATION
+                      </span>
+
+                      <h3>
+                        {selectedException.transaction_id}
+                      </h3>
+
+                      <p className="investigation-subtitle">
+                        Financial exception identified by the reconciliation engine.
+                      </p>
+
+                      <p>
+                        Order {selectedException.order_id}
+                      </p>
+                    </div>
+                    <button
+                      className="investigation-close"
+                      onClick={() =>
+                        setSelectedException(null)
+                      }
+                    >
+                      Close
+                    </button>
+
+                  </div>
+
+                  <div className="investigation-grid">
+
+                    <div className="investigation-field">
+                      <span>
+                        EXCEPTION TYPE
+                      </span>
+
+                      <strong>
+                        {selectedException.exception_type}
+                      </strong>
+                    </div>
+
+                    <div className="investigation-field">
+                      <span>
+                        FINANCIAL DIFFERENCE
+                      </span>
+
+                      <strong>
+                        {selectedException.difference
+                          ? `₹${selectedException.difference}`
+                          : "—"}
+                      </strong>
+                    </div>
+
+                    <div className="investigation-field">
+                      <span>
+                        MANUAL REVIEW
+                      </span>
+
+                      <strong>
+                        {selectedException.requires_manual_review
+                          ? "REQUIRED"
+                          : "NOT REQUIRED"}
+                      </strong>
+                    </div>
+
+                    <div className="investigation-field">
+                      <span>
+                        RECONCILIATION ID
+                      </span>
+
+                      <strong>
+                        {selectedException.id}
+                      </strong>
+                    </div>
+
+                  </div>
+                  <div className="investigation-evidence">
+
+                    <div className="investigation-section-label">
+                      DETERMINISTIC EVIDENCE
+                    </div>
+
+                    <div className="evidence-grid">
+
+                      <div className="evidence-item">
+                        <span>PAYMENT</span>
+                        <strong>
+                          ₹{selectedException.payment_amount ?? "—"}
+                        </strong>
+                      </div>
+
+                      <div className="evidence-item">
+                        <span>FEE</span>
+                        <strong>
+                          ₹{selectedException.fee ?? "—"}
+                        </strong>
+                      </div>
+
+                      <div className="evidence-item">
+                        <span>REFUND</span>
+                        <strong>
+                          ₹{selectedException.refund ?? "—"}
+                        </strong>
+                      </div>
+
+                      <div className="evidence-item">
+                        <span>ADJUSTMENT</span>
+                        <strong>
+                          ₹{selectedException.adjustment ?? "—"}
+                        </strong>
+                      </div>
+
+                      <div className="evidence-item">
+                        <span>EXPECTED SETTLEMENT</span>
+                        <strong>
+                          ₹{selectedException.expected_settlement ?? "—"}
+                        </strong>
+                      </div>
+
+                      <div className="evidence-item">
+                        <span>ACTUAL SETTLEMENT</span>
+                        <strong>
+                          ₹{selectedException.actual_settlement ?? "—"}
+                        </strong>
+                      </div>
+
+                      <div className="evidence-item">
+                        <span>PAYMENT STATUS</span>
+                        <strong>
+                          {selectedException.payment_status ?? "—"}
+                        </strong>
+                      </div>
+
+                      <div className="evidence-item">
+                        <span>SETTLEMENT STATUS</span>
+                        <strong>
+                          {selectedException.settlement_status ?? "—"}
+                        </strong>
+                      </div>
+
+                    </div>
+
+                  </div>
+                  <div className="investigation-actions">
+
+                    {selectedException.ai_analysis ? (
+
+                      <button
+                        className="ai-analyzed-button"
+                        onClick={() =>
+                          setAiAnalysis(
+                            selectedException.ai_analysis
+                          )
+                        }
+                      >
+                        ✓ VIEW AI ANALYSIS
+                      </button>
+
+                    ) : (
+
+                      <button
+                        className="ai-button"
+                        onClick={() =>
+                          analyzeException(
+                            selectedException.id
+                          )
+                        }
+                        disabled={
+                          aiLoading ===
+                          selectedException.id
+                        }
+                      >
+                        {aiLoading ===
+                        selectedException.id
+                          ? "Analyzing..."
+                          : "✨ Analyze Exception"}
+                      </button>
+
+                    )}
+
+                  </div>
+
+                </div>
+
+              </section>
+            )}
             {aiError && (
               <section className="section">
 
@@ -1452,17 +1658,15 @@ const runController = async () => {
 </div>
 
                   <div className="ai-analysis-header">
-
                     <div>
                       <span className="eyebrow">
-                        GEMINI AI
+                        STEP 2 · AI INTERPRETATION
                       </span>
 
                       <h3>
-                        Exception Analysis
+                        Evidence-Based Exception Analysis
                       </h3>
                     </div>
-
                     <span className="ai-model">
                       {aiAnalysis.model_name}
                     </span>
@@ -1553,7 +1757,7 @@ const runController = async () => {
                     <div>
 
                       <span className="ai-label">
-                        RECOMMENDED ACTION
+                        STEP 3 · RECOMMENDED ACTION
                       </span>
 
                       <p>
@@ -1563,32 +1767,6 @@ const runController = async () => {
                       </p>
 
                     </div>
-
-                    <div>
-
-                      <span className="ai-label">
-                        EVIDENCE
-                      </span>
-
-                      <ul>
-
-                        {(
-                          aiAnalysis
-                            .evidence_summary
-                            ?.key_facts ||
-                          []
-                        ).map(
-                          (fact, index) => (
-                            <li key={index}>
-                              {fact}
-                            </li>
-                          )
-                        )}
-
-                      </ul>
-
-                    </div>
-
                   </div>
 
                   <div className="ai-footer">

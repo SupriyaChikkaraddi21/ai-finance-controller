@@ -72,6 +72,57 @@ class ReconciliationResultSerializer(
         source="transaction.order_id",
         read_only=True,
     )
+    payment_amount = serializers.DecimalField(
+        source="transaction.payment_amount",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    fee = serializers.DecimalField(
+        source="transaction.fee",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    refund = serializers.DecimalField(
+        source="transaction.refund",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    adjustment = serializers.DecimalField(
+        source="transaction.adjustment",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    expected_settlement = serializers.DecimalField(
+        source="transaction.expected_settlement",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    actual_settlement = serializers.DecimalField(
+        source="transaction.actual_settlement",
+        max_digits=12,
+        decimal_places=2,
+        read_only=True,
+        allow_null=True,
+    )
+    payment_status = serializers.CharField(
+        source="transaction.payment_status",
+        read_only=True,
+    )
+
+    settlement_status = serializers.CharField(
+        source="transaction.settlement_status",
+        read_only=True,
+    )
 
     ai_analysis = AIAnalysisSerializer(
         read_only=True,
@@ -85,6 +136,14 @@ class ReconciliationResultSerializer(
             "transaction",
             "transaction_id",
             "order_id",
+            "payment_amount",
+            "fee",
+            "refund",
+            "adjustment",
+            "expected_settlement",
+            "actual_settlement",
+            "payment_status",
+            "settlement_status",
             "result",
             "exception_type",
             "difference",
@@ -93,7 +152,6 @@ class ReconciliationResultSerializer(
             "created_at",
             "ai_analysis",
         ]
-
 
 
 class AuditLogSerializer(serializers.ModelSerializer):
