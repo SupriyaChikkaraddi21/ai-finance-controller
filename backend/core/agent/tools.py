@@ -113,9 +113,9 @@ def inspect_investigation_scope(
     Build a deterministic investigation snapshot for the
     exception population in a reconciliation batch.
 
-    This tool provides population-level deterministic context.
-    It does not perform AI analysis, verification, or risk
-    assessment for every exception.
+    Risk classification is delegated to the same deterministic
+    risk engine used by assess_exception_risk(), ensuring that
+    all controller surfaces report identical risk counts.
     """
 
     exceptions = get_batch_exceptions(
@@ -125,69 +125,34 @@ def inspect_investigation_scope(
     high_risk = []
     medium_risk = []
     manual_review = []
+    exception_snapshots = []
 
     for exception in exceptions:
 
-        exception_type = (
-            exception["exception_type"]
+        reconciliation_id = (
+            exception["reconciliation_id"]
         )
 
-        difference = exception["difference"]
+        risk = assess_exception_risk(
+            reconciliation_id
+        )
 
         item = {
-            "reconciliation_id": (
-                exception["reconciliation_id"]
-            ),
-            "transaction_id": (
-                exception["transaction_id"]
-            ),
-            "order_id": (
-                exception["order_id"]
-            ),
-            "exception_type": exception_type,
-            "difference": difference,
-            "requires_manual_review": (
-                exception["requires_manual_review"]
-            ),
+            **exception,
+            "risk_level": risk["risk_level"],
         }
 
-        # Deterministic risk prioritization.
-        if exception_type in {
-            "MISSING_PAYMENT",
-            "MISSING_SETTLEMENT",
-            "DUPLICATE",
-        }:
-            item["risk_level"] = "HIGH"
+        exception_snapshots.append(item)
+
+        if risk["risk_level"] == "HIGH":
             high_risk.append(item)
 
-        elif exception_type in {
-            "STATUS_MISMATCH",
-            "AMOUNT_MISMATCH",
-            "CALCULATION_MISMATCH",
-            "UNKNOWN",
-        }:
-            item["risk_level"] = "MEDIUM"
+        elif risk["risk_level"] == "MEDIUM":
             medium_risk.append(item)
 
-        elif difference is not None:
-            try:
-                if abs(float(difference)) >= 100:
-                    item["risk_level"] = "HIGH"
-                    high_risk.append(item)
-                elif float(difference) > 0:
-                    item["risk_level"] = "MEDIUM"
-                    medium_risk.append(item)
-                else:
-                    item["risk_level"] = "LOW"
-            except (TypeError, ValueError):
-                item["risk_level"] = "LOW"
-
-        else:
-            item["risk_level"] = "LOW"
-
         if (
-            item["requires_manual_review"]
-            or item["risk_level"] == "HIGH"
+            exception["requires_manual_review"]
+            or risk["risk_level"] == "HIGH"
         ):
             manual_review.append(item)
 
@@ -205,34 +170,8 @@ def inspect_investigation_scope(
         "manual_review_count": len(
             manual_review
         ),
-        "exceptions": [
-            {
-                **exception,
-                "risk_level": (
-                    "HIGH"
-                    if exception["exception_type"]
-                    in {
-                        "MISSING_PAYMENT",
-                        "MISSING_SETTLEMENT",
-                        "DUPLICATE",
-                    }
-                    else (
-                        "MEDIUM"
-                        if exception["exception_type"]
-                        in {
-                            "STATUS_MISMATCH",
-                            "AMOUNT_MISMATCH",
-                            "CALCULATION_MISMATCH",
-                            "UNKNOWN",
-                        }
-                        else "LOW"
-                    )
-                ),
-            }
-            for exception in exceptions
-        ],
+        "exceptions": exception_snapshots,
     }
-
 
 # ============================================================
 # TOOL 3 — GET TRANSACTION EVIDENCE

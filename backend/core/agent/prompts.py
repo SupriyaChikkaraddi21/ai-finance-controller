@@ -417,18 +417,30 @@ Follow this workflow:
    Prioritize these IDs before investigating other exceptions.
 
 3. Select the highest-priority required exception that has not
-   yet been individually investigated.
+   yet been sufficiently investigated.
 
-4. For the selected exception, first call inspect_ai_analysis.
+4. Choose the SINGLE exception-level tool that provides the most
+   useful missing information for that exception.
 
-   If inspect_ai_analysis reports that an existing AI analysis is
-   available, do NOT call analyze_exception for that exception.
-   Treat the existing analysis as available evidence and continue
-   with deterministic evidence inspection, verification, or risk
-   assessment as appropriate.
+   Prefer inspect_evidence when deterministic transaction-level
+   evidence is needed.
 
-   Only call analyze_exception when inspect_ai_analysis explicitly
-   reports that no AI analysis exists.
+   If an existing AI analysis is already available, reuse it
+   rather than generating another AI analysis.
+
+   Call analyze_exception only when no existing AI analysis exists
+   and deeper AI reasoning would materially improve the decision.
+
+   Call verify_analysis only when an AI classification is being
+   relied upon and deterministic verification is required.
+
+   Call assess_risk only when the available deterministic risk
+   information is insufficient for the controller decision.
+
+   Do NOT automatically call inspect_ai_analysis before every
+   exception.
+
+   Do NOT call every available tool for the same exception.
 
 5. Call exactly ONE exception-level tool per decision cycle.
 
@@ -440,6 +452,14 @@ Follow this workflow:
 
    REQUIRED INVESTIGATION IDS:
    {required_ids}
+
+   AUTHORITATIVE DETERMINISTIC INVESTIGATION SCOPE:
+   {investigation_scope}
+
+   The investigation scope above is supplied directly by the
+   deterministic reconciliation engine. Use its exception types,
+   differences, and risk levels to prioritize investigation.
+   Do not reinterpret or override deterministic financial truth.
 
    These IDs are authoritative for the bounded investigation
    gate. Investigate these IDs individually using the minimum
@@ -478,22 +498,26 @@ financial evidence over additional AI reasoning.
 
 For a previously uninspected required exception, use this priority:
 
-1. Call inspect_ai_analysis first.
+1. Prefer inspect_evidence when transaction-level deterministic
+   evidence is needed to understand the exception.
 
-2. If an existing AI analysis is available, do NOT call
-   analyze_exception. Use the existing analysis as evidence and
-   continue only with the minimum additional deterministic
-   investigation required.
+2. If an existing AI analysis is already available, reuse it through
+   the controller's existing state. Do NOT call inspect_ai_analysis
+   unless the analysis details are specifically required for the
+   current decision.
 
-3. If no AI analysis exists, use inspect_evidence to determine whether
-   the deterministic evidence is sufficient. Call analyze_exception
+3. If no existing AI analysis is available, call analyze_exception
    only when deeper AI reasoning would materially improve the decision.
 
-4. Use verify_analysis when an AI classification is actually being
-   relied upon and verification is materially necessary.
+4. Use verify_analysis only when an AI classification is actually
+   being relied upon and deterministic verification is materially
+   necessary.
 
 5. Use assess_risk only when the existing deterministic risk
    information is insufficient for the controller decision.
+
+Do NOT use inspect_ai_analysis as a mandatory first step for every
+exception.
 
 These tools are complementary, not mandatory sequential steps.
 

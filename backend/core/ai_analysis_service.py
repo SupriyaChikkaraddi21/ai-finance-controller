@@ -503,6 +503,15 @@ def analyze_exception(
             "AI analysis is only allowed for exceptions."
         )
 
+    # Reuse an existing persisted analysis instead of
+    # making another Gemini API request.
+    try:
+        return AIAnalysis.objects.get(
+            reconciliation=reconciliation
+        )
+    except AIAnalysis.DoesNotExist:
+        pass
+
     evidence = build_exception_evidence(
         reconciliation
     )

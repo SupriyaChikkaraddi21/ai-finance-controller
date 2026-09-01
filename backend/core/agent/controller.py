@@ -135,10 +135,10 @@ def get_required_investigation_ids(
         )
     )
 
-    # Require investigation of every deterministic exception.
-    # The agent may still stop at MAX_AGENT_STEPS if the batch
-    # is too large, but it cannot finalize while required
-    # exceptions remain uninvestigated.
+    # Require investigation of the bounded deterministic
+    # exception population selected for this controller run.
+    # The full population remains available for deterministic
+    # risk reporting; this set controls the investigation gate.
     MAX_REQUIRED_INVESTIGATIONS = 25
 
     return {
@@ -464,6 +464,11 @@ def execute_tool(
 
 MAX_AGENT_STEPS = 40
 
+# Gemini free-tier requests are limited per minute.
+# Keep the controller below that limit so a single run
+# does not exhaust the available model quota.
+MAX_GEMINI_CALLS = 10
+
 def get_investigation_status(
     exceptions_available,
     exceptions_inspected,
@@ -642,6 +647,18 @@ def run_agent_loop(
                     "status": "ERROR",
                 }
             )
+    # Provide Gemini with the authoritative deterministic
+    # investigation scope so it does not waste model turns
+    # rediscovering exception IDs and risk priorities.
+    investigation_scope = get_investigation_scope(
+        batch_id
+    )
+
+    scope_summary = investigation_scope.get(
+        "exceptions",
+        []
+    )
+
     contents = [
         types.Content(
             role="user",
@@ -652,7 +669,8 @@ def run_agent_loop(
                         required_ids=sorted(
                             required_investigation_ids
                         ),
-                    )
+                        investigation_scope=scope_summary,
+                    ),
                 )
             ],
         )
@@ -740,6 +758,72 @@ def run_agent_loop(
             f"🤖 CONTROLLER STEP {step}/{MAX_AGENT_STEPS}",
             flush=True,
         )
+
+        if model_call_count >= MAX_GEMINI_CALLS:
+            final_response = (
+                "Controller investigation stopped after reaching "
+                f"the Gemini model-call budget of {MAX_GEMINI_CALLS}. "
+                f"{len(exceptions_inspected)} of "
+                f"{exceptions_available} exceptions were inspected. "
+                f"{exceptions_available - len(exceptions_inspected)} "
+                "exceptions remain unresolved and require further "
+                "automated investigation or manual review."
+            )
+
+            tool_trace.append(
+                {
+                    "step": step,
+                    "type": "MODEL_CALL_BUDGET_REACHED",
+                    "status": "STOPPED",
+                    "model_call_budget": MAX_GEMINI_CALLS,
+                    "model_calls_used": model_call_count,
+                    "exceptions_available": exceptions_available,
+                    "exceptions_inspected": len(
+                        exceptions_inspected
+                    ),
+                }
+            )
+
+            return {
+                "final_response": final_response,
+                "tool_trace": tool_trace,
+                "tool_call_count": tool_call_count,
+                "model_call_count": model_call_count,
+                "llm_status": "CALL_BUDGET_REACHED",
+                "llm_error": None,
+                "investigation": {
+                    "exceptions_available": exceptions_available,
+                    "exceptions_inspected": len(
+                        exceptions_inspected
+                    ),
+                    "evidence_inspected": len(
+                        evidence_inspected
+                    ),
+                    "analyses_inspected": len(
+                        analyses_inspected
+                    ),
+                    "analyses_verified": len(
+                        analyses_verified
+                    ),
+                    "risks_assessed": len(
+                        risks_assessed
+                    ),
+                    "investigation_coverage": (
+                        round(
+                            len(exceptions_inspected)
+                            / exceptions_available * 100,
+                            2,
+                        )
+                        if exceptions_available
+                        else 100
+                    ),
+                    "uninspected_exceptions": (
+                        exceptions_available
+                        - len(exceptions_inspected)
+                    ),
+                    "status": "BLOCKED_MODEL_CALL_BUDGET",
+                },
+            }
 
         model_call_count += 1
 
@@ -1350,7 +1434,6 @@ def run_agent_loop(
                 "inspect_ai_analysis",
                 "analyze_exception",
                 "verify_analysis",
-                "assess_risk",
             }:
                 reconciliation_id = arguments.get(
                     "reconciliation_id"
@@ -1678,6 +1761,7 @@ def run_controller_agent(
     )
 
     analyses = []
+    all_risk_assessments = []
 
     for exception in exceptions:
 
@@ -1686,7 +1770,11 @@ def run_controller_agent(
                 "reconciliation_id"
             ]
         )
-
+        all_risk_assessments.append(
+            assess_risk(
+                reconciliation_id
+            )
+        )
         # Only exceptions actually investigated by the controller
         # are included in the agent analysis report.
         if (
@@ -1805,21 +1893,16 @@ def run_controller_agent(
     # --------------------------------------------------------
     # DETERMINISTIC RISK GROUPS
     # --------------------------------------------------------
-
     high_risk_exceptions = [
-        analysis
-        for analysis in analyses
-        if analysis[
-            "risk_level"
-        ] == "HIGH"
+        risk
+        for risk in all_risk_assessments
+        if risk["risk_level"] == "HIGH"
     ]
 
     medium_risk_exceptions = [
-        analysis
-        for analysis in analyses
-        if analysis[
-            "risk_level"
-        ] == "MEDIUM"
+        risk
+        for risk in all_risk_assessments
+        if risk["risk_level"] == "MEDIUM"
     ]
 
     # --------------------------------------------------------
@@ -1832,9 +1915,6 @@ def run_controller_agent(
         batch_id,
         analyses,
     )
-
-
-
     # --------------------------------------------------------
     # ADD AGENT METADATA
     # --------------------------------------------------------
@@ -1854,6 +1934,13 @@ def run_controller_agent(
     exceptions_inspected = investigation.get(
         "exceptions_inspected",
         0,
+    )
+    report["agent"]["exceptions_investigated"] = (
+        exceptions_inspected
+    )
+
+    report["agent"]["exceptions_analyzed"] = (
+        len(analyses)
     )
 
     investigation_coverage = investigation.get(
@@ -2041,23 +2128,44 @@ def run_controller_agent(
 
     # --------------------------------------------------------
     # DETERMINISTIC RISK SUMMARY
+    #
+    # Risk summary must represent the COMPLETE exception
+    # population, not only exceptions investigated by Gemini.
+    # The deterministic risk engine is the source of truth.
     # --------------------------------------------------------
+
+    population_high_risk = []
+    population_medium_risk = []
+
+    for exception in exceptions:
+        risk = assess_risk(
+            exception["reconciliation_id"]
+        )
+
+        if risk["risk_level"] == "HIGH":
+            population_high_risk.append(
+                exception["reconciliation_id"]
+            )
+
+        elif risk["risk_level"] == "MEDIUM":
+            population_medium_risk.append(
+                exception["reconciliation_id"]
+            )
 
     report["risk_summary"] = {
         "high_risk_count": len(
-            high_risk_exceptions
+            population_high_risk
         ),
         "medium_risk_count": len(
-            medium_risk_exceptions
+            population_medium_risk
         ),
-        "high_risk_reconciliation_ids": [
-            analysis["reconciliation_id"]
-            for analysis in high_risk_exceptions
-        ],
-        "medium_risk_reconciliation_ids": [
-            analysis["reconciliation_id"]
-            for analysis in medium_risk_exceptions
-        ],
+        "high_risk_reconciliation_ids": (
+            population_high_risk
+        ),
+        "medium_risk_reconciliation_ids": (
+            population_medium_risk
+        ),
+        "source": "deterministic_reconciliation_engine",
     }
     # --------------------------------------------------------
     # COMPLETION AUDIT LOG
@@ -2076,6 +2184,27 @@ def run_controller_agent(
             "tool_calls": tool_call_count,
             "exceptions": len(
                 exceptions
+            ),
+            "exceptions_investigated": (
+                report[
+                    "agent"
+                ][
+                    "exceptions_investigated"
+                ]
+            ),
+            "exceptions_analyzed": (
+                report[
+                    "agent"
+                ][
+                    "exceptions_analyzed"
+                ]
+            ),
+            "investigation_coverage": (
+                report[
+                    "agent"
+                ][
+                    "investigation_coverage"
+                ]
             ),
             "manual_review_required": (
                 report[

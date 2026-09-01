@@ -394,18 +394,10 @@ const runController = async () => {
     metrics?.exception_rate ?? 0;
 
   const controllerHighRiskCount =
-    controllerReport?.tool_trace?.filter(
-      (trace) =>
-        trace.type === "EXISTING_ANALYSIS_REUSED" &&
-        trace.risk?.risk_level === "HIGH"
-    ).length ?? 0;
+    controllerReport?.risk_summary?.high_risk_count ?? 0;
 
   const controllerMediumRiskCount =
-    controllerReport?.tool_trace?.filter(
-      (trace) =>
-        trace.type === "EXISTING_ANALYSIS_REUSED" &&
-        trace.risk?.risk_level === "MEDIUM"
-    ).length ?? 0;
+    controllerReport?.risk_summary?.medium_risk_count ?? 0;
 
   const exceptionCounts =
     exceptions.reduce((acc, item) => {

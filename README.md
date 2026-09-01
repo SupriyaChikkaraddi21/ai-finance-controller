@@ -386,6 +386,9 @@ The controller can inspect:
 - Controller-level reports
 
 The controller follows a bounded investigation process.
+The controller operates within a configured Gemini model-call budget. If that budget is reached before all required exceptions are investigated, the controller reports partial investigation coverage and leaves the remaining exceptions for further automated investigation or manual review.
+
+The deterministic reconciliation engine remains the authoritative source of financial truth. AI analysis and controller reasoning do not override deterministic reconciliation results.
 
 It can identify which deterministic exceptions require individual investigation and prioritize them using risk level.
 
@@ -489,16 +492,7 @@ Exceptions          : 25
 Match rate          : 75.00%
 Exception rate      : 25.00%
 ```
-
-The latest standalone reconciliation run processed:
-
-```text
-Processing time : 3.22 ms
-Throughput      : 31057.72 records/sec
-```
-
-The exact performance depends on the execution environment and should not be treated as a production benchmark.
-
+Performance metrics are environment- and dataset-dependent. The reconciliation API reports processing time and throughput for each completed batch. These values should not be treated as production benchmarks.
 ---
 
 ## Deterministic Evaluation
