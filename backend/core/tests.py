@@ -247,3 +247,81 @@ class FinanceControllerModelTests(TestCase):
             audit.metadata["model_name"],
             "gemini-3.5-flash-lite",
         )
+    def test_human_resolution_records_decision_and_audit_log(self):
+        """Human resolution should record the decision without changing financial truth."""
+        exception = ReconciliationResult.objects.create(
+            transaction=Transaction.objects.create(
+                transaction_id="TEST_TXN_003",
+                order_id="TEST_ORDER_003",
+                payment_amount=Decimal("1000.00"),
+                fee=Decimal("20.00"),
+                refund=Decimal("0.00"),
+                adjustment=Decimal("0.00"),
+                expected_settlement=Decimal("980.00"),
+                actual_settlement=Decimal("900.00"),
+                payment_status="SUCCESS",
+                settlement_status="SETTLED",
+                batch=self.batch,
+            ),
+            result="EXCEPTION",
+            exception_type="AMOUNT_MISMATCH",
+            difference=Decimal("80.00"),
+            requires_manual_review=True,
+            rule_version="v1",
+        )
+
+        from rest_framework.test import APIClient
+
+        client = APIClient()
+
+        response = client.post(
+            f"/api/reconciliations/{exception.id}/resolve/",
+            {
+                "resolution_status": "APPROVED",
+                "resolved_by": "finance_controller",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        exception.refresh_from_db()
+
+        self.assertEqual(
+            exception.result,
+            "EXCEPTION",
+        )
+
+        self.assertEqual(
+            exception.resolution_status,
+            "APPROVED",
+        )
+
+        self.assertEqual(
+            exception.resolved_by,
+            "finance_controller",
+        )
+
+        self.assertIsNotNone(
+            exception.resolved_at
+        )
+
+        audit = AuditLog.objects.get(
+            action="MANUAL_REVIEW",
+            transaction=exception.transaction,
+        )
+
+        self.assertEqual(
+            audit.metadata["previous_status"],
+            "PENDING",
+        )
+
+        self.assertEqual(
+            audit.metadata["resolution_status"],
+            "APPROVED",
+        )
+
+        self.assertEqual(
+            audit.metadata["resolved_by"],
+            "finance_controller",
+        )

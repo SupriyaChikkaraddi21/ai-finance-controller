@@ -2,11 +2,12 @@ from rest_framework import status
 from .agent.controller import run_controller_agent
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from django.utils import timezone
 from .models import (
     Batch,
     ReconciliationResult,
     AIAnalysis,
+    AuditLog,
 )
 from .serializers import (
     BatchSerializer,
@@ -316,6 +317,140 @@ class AIAnalysisDetailView(APIView):
 
         serializer = AIAnalysisSerializer(
             analysis
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+class ReconciliationResolutionView(APIView):
+
+    def post(self, request, reconciliation_id):
+
+        try:
+            reconciliation = (
+                ReconciliationResult.objects
+                .select_related(
+                    "transaction",
+                    "transaction__batch",
+                )
+                .get(
+                    id=reconciliation_id
+                )
+            )
+
+        except ReconciliationResult.DoesNotExist:
+
+            return Response(
+                {
+                    "error": (
+                        "Reconciliation result "
+                        "not found."
+                    )
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if reconciliation.result != "EXCEPTION":
+
+            return Response(
+                {
+                    "error": (
+                        "Only reconciliation "
+                        "exceptions can be resolved."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        resolution_status = request.data.get(
+            "resolution_status"
+        )
+
+        resolved_by = request.data.get(
+            "resolved_by"
+        )
+
+        allowed_statuses = {
+            "APPROVED",
+            "REJECTED",
+            "ESCALATED",
+        }
+
+        if resolution_status not in allowed_statuses:
+
+            return Response(
+                {
+                    "error": (
+                        "Invalid resolution_status. "
+                        "Use APPROVED, REJECTED, "
+                        "or ESCALATED."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not resolved_by:
+
+            return Response(
+                {
+                    "error": (
+                        "resolved_by is required."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        previous_status = (
+            reconciliation.resolution_status
+        )
+
+        reconciliation.resolution_status = (
+            resolution_status
+        )
+
+        reconciliation.resolved_by = (
+            resolved_by
+        )
+
+        reconciliation.resolved_at = (
+            timezone.now()
+        )
+
+        reconciliation.save(
+            update_fields=[
+                "resolution_status",
+                "resolved_by",
+                "resolved_at",
+            ]
+        )
+
+        AuditLog.objects.create(
+            batch=reconciliation.transaction.batch,
+            transaction=reconciliation.transaction,
+            action="MANUAL_REVIEW",
+            message=(
+                "Human resolution recorded for "
+                "reconciliation exception."
+            ),
+            metadata={
+                "reconciliation_id": (
+                    reconciliation.id
+                ),
+                "previous_status": (
+                    previous_status
+                ),
+                "resolution_status": (
+                    resolution_status
+                ),
+                "resolved_by": (
+                    resolved_by
+                ),
+            },
+        )
+
+        serializer = ReconciliationResultSerializer(
+            reconciliation
         )
 
         return Response(

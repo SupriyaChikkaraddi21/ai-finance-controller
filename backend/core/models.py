@@ -182,6 +182,30 @@ class ReconciliationResult(models.Model):
         default=False
     )
 
+    RESOLUTION_STATUS_CHOICES = [
+        ("PENDING", "Pending"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+        ("ESCALATED", "Escalated"),
+    ]
+
+    resolution_status = models.CharField(
+        max_length=20,
+        choices=RESOLUTION_STATUS_CHOICES,
+        default="PENDING",
+    )
+
+    resolved_by = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+    )
+
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
     rule_version = models.CharField(
         max_length=50,
         default="v1",

@@ -311,6 +311,62 @@ console.log(
       setAiLoading(null);
     }
   };
+
+  const resolveException = async (
+    reconciliationId,
+    resolutionStatus
+  ) => {
+    try {
+      setAiError("");
+
+      const response = await fetch(
+        `${API}/reconciliations/${reconciliationId}/resolve/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            resolution_status: resolutionStatus,
+            resolved_by: "finance_controller",
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.details ||
+            data.error ||
+            "Unable to record resolution."
+        );
+      }
+
+      setSelectedException(data);
+
+      setAiAnalysis(
+        data.ai_analysis || null
+      );
+
+      setMessage(
+        `Exception ${resolutionStatus.toLowerCase()} successfully.`
+      );
+
+      await loadBatchDetails(
+        selectedBatch.id
+      );
+
+    } catch (error) {
+      console.error(error);
+
+      setAiError(
+        error.message ||
+          "Unable to record resolution."
+      );
+    }
+  };
+
 const runController = async () => {
   if (!selectedBatch) {
     return;
@@ -1709,17 +1765,28 @@ const runController = async () => {
                       <span>
                         FINANCIAL DIFFERENCE
                       </span>
-
                       <strong>
-                        ₹
                         {
-                          aiAnalysis
-                            .evidence_summary
-                            ?.financial_difference ??
-                          "—"
+                          (() => {
+                            const value =
+                              aiAnalysis
+                                .evidence_summary
+                                ?.financial_difference;
+
+                            const isNumeric =
+                              value !== null &&
+                              value !== undefined &&
+                              value !== "" &&
+                              value !== "None" &&
+                              value !== "N/A" &&
+                              /^-?\d+(\.\d+)?$/.test(String(value).trim());
+
+                            return isNumeric
+                              ? `₹${value}`
+                              : "—";
+                          })()
                         }
                       </strong>
-
                     </div>
 
                     <div className="ai-field">
@@ -1767,6 +1834,107 @@ const runController = async () => {
                       </p>
 
                     </div>
+                  </div>
+
+                  <div className="human-resolution">
+
+                    <div className="human-resolution-header">
+
+                      <div>
+                        <span className="ai-label">
+                          STEP 4 · HUMAN CONTROLLER DECISION
+                        </span>
+
+                        <h3>
+                          Review and Resolve Exception
+                        </h3>
+                      </div>
+
+                      <span className="resolution-status">
+                        STATUS:{" "}
+                        {
+                          selectedException
+                            ?.resolution_status || "PENDING"
+                        }
+                      </span>
+
+                    </div>
+
+                    <p>
+                      The controller makes the final decision.
+                      This does not modify the deterministic
+                      reconciliation result.
+                    </p>
+
+                    <div className="resolution-actions">
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          resolveException(
+                            selectedException.id,
+                            "APPROVED"
+                          )
+                        }
+                        disabled={
+                          selectedException
+                            ?.resolution_status !== "PENDING"
+                        }
+                      >
+                        APPROVE
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          resolveException(
+                            selectedException.id,
+                            "REJECTED"
+                          )
+                        }
+                        disabled={
+                          selectedException
+                            ?.resolution_status !== "PENDING"
+                        }
+                      >
+                        REJECT
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          resolveException(
+                            selectedException.id,
+                            "ESCALATED"
+                          )
+                        }
+                        disabled={
+                          selectedException
+                            ?.resolution_status !== "PENDING"
+                        }
+                      >
+                        ESCALATE
+                      </button>
+
+                    </div>
+
+                    {
+                      selectedException?.resolved_by && (
+                        <div className="resolution-meta">
+                          Resolved by{" "}
+                          <strong>
+                            {selectedException.resolved_by}
+                          </strong>
+                          {" · "}
+                          {
+                            new Date(
+                              selectedException.resolved_at
+                            ).toLocaleString()
+                          }
+                        </div>
+                      )
+                    }
+
                   </div>
 
                   <div className="ai-footer">
