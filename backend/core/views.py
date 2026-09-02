@@ -13,6 +13,7 @@ from .serializers import (
     BatchSerializer,
     ReconciliationResultSerializer,
     AIAnalysisSerializer,
+    AuditLogSerializer,
 )
 from .reconciliation_service import reconcile_batch
 from .ai_analysis_service import (
@@ -514,3 +515,36 @@ class FinanceControllerAgentView(APIView):
                     status.HTTP_503_SERVICE_UNAVAILABLE
                 )
             )
+class AuditLogListView(APIView):
+
+    def get(self, request, batch_id):
+
+        try:
+            batch = Batch.objects.get(
+                id=batch_id
+            )
+
+        except Batch.DoesNotExist:
+
+            return Response(
+                {
+                    "error": "Batch not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        audit_logs = (
+            AuditLog.objects
+            .filter(batch=batch)
+            .order_by("-created_at")
+        )
+
+        serializer = AuditLogSerializer(
+            audit_logs,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )

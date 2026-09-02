@@ -10,6 +10,7 @@ from .views import (
     AIAnalysisDetailView,
     ReconciliationResolutionView,
     FinanceControllerAgentView,
+    AuditLogListView,
 )
 
 
@@ -73,5 +74,10 @@ urlpatterns = [
         "batches/<int:batch_id>/controller/",
         FinanceControllerAgentView.as_view(),
         name="finance-controller-agent",
+    ),
+    path(
+        "batches/<int:batch_id>/audit-logs/",
+        AuditLogListView.as_view(),
+        name="audit-log-list",
     ),
 ]
