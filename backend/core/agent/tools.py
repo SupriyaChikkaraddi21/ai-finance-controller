@@ -136,10 +136,11 @@ def inspect_investigation_scope(
         risk = assess_exception_risk(
             reconciliation_id
         )
-
         item = {
             **exception,
             "risk_level": risk["risk_level"],
+            "priority_score": risk["priority_score"],
+            "priority_reasons": risk["priority_reasons"],
         }
 
         exception_snapshots.append(item)
@@ -623,6 +624,8 @@ def assess_exception_risk(reconciliation_id):
 
     risk = "LOW"
     reasons = []
+    priority_score = 10
+    priority_reasons = []
 
     # --------------------------------------------------------
     # HIGH RISK CONDITIONS
@@ -683,12 +686,73 @@ def assess_exception_risk(reconciliation_id):
             "reconciliation evidence."
         )
 
+    # --------------------------------------------------------
+    # DETERMINISTIC PRIORITY SCORE
+    #
+    # Priority is separate from financial truth and risk
+    # classification. It only determines investigation order.
+    # --------------------------------------------------------
+
+    risk_base = {
+        "HIGH": 50,
+        "MEDIUM": 25,
+        "LOW": 10,
+    }
+
+    priority_score = risk_base.get(
+        risk,
+        10,
+    )
+
+    if difference >= Decimal("10000"):
+        priority_score += 30
+        priority_reasons.append(
+            "Financial exposure is at least ₹10,000."
+        )
+
+    elif difference >= Decimal("1000"):
+        priority_score += 20
+        priority_reasons.append(
+            "Financial exposure is at least ₹1,000."
+        )
+
+    elif difference >= Decimal("100"):
+        priority_score += 10
+        priority_reasons.append(
+            "Financial exposure is at least ₹100."
+        )
+
+    if result.exception_type in {
+        "MISSING_PAYMENT",
+        "MISSING_SETTLEMENT",
+    }:
+        priority_score += 20
+        priority_reasons.append(
+            "Missing financial evidence can affect "
+            "settlement completeness."
+        )
+
+    elif result.exception_type == "DUPLICATE":
+        priority_score += 15
+        priority_reasons.append(
+            "Duplicate transaction requires financial "
+            "completeness review."
+        )
+
+    if result.requires_manual_review:
+        priority_score += 10
+        priority_reasons.append(
+            "Exception is explicitly marked for manual review."
+        )
+
     return {
         "reconciliation_id": result.id,
         "transaction_id": transaction.transaction_id,
         "exception_type": result.exception_type,
         "difference": str(difference),
         "risk_level": risk,
+        "priority_score": priority_score,
+        "priority_reasons": priority_reasons,
         "reasons": reasons,
         "requires_manual_review": (
             risk == "HIGH"

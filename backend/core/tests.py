@@ -399,3 +399,79 @@ class FinanceControllerModelTests(TestCase):
             "Gemini reasoning was unavailable",
             report["final_response"],
         )
+    def test_priority_score_ranks_exceptions(self):
+        """Higher-priority financial exceptions must rank first."""
+
+        from .agent.tools import assess_exception_risk
+
+        missing_settlement = ReconciliationResult.objects.create(
+            transaction=Transaction.objects.create(
+                transaction_id="PRIORITY_TXN_001",
+                order_id="PRIORITY_ORDER_001",
+                payment_amount=Decimal("1000.00"),
+                fee=Decimal("20.00"),
+                refund=Decimal("0.00"),
+                adjustment=Decimal("0.00"),
+                expected_settlement=Decimal("980.00"),
+                actual_settlement=None,
+                payment_status="SUCCESS",
+                settlement_status="MISSING",
+                batch=self.batch,
+            ),
+            result="EXCEPTION",
+            exception_type="MISSING_SETTLEMENT",
+            difference=None,
+            requires_manual_review=True,
+            rule_version="v1",
+        )
+
+        status_mismatch = ReconciliationResult.objects.create(
+            transaction=Transaction.objects.create(
+                transaction_id="PRIORITY_TXN_002",
+                order_id="PRIORITY_ORDER_002",
+                payment_amount=Decimal("100.00"),
+                fee=Decimal("2.00"),
+                refund=Decimal("0.00"),
+                adjustment=Decimal("0.00"),
+                expected_settlement=Decimal("98.00"),
+                actual_settlement=Decimal("98.00"),
+                payment_status="SUCCESS",
+                settlement_status="FAILED",
+                batch=self.batch,
+            ),
+            result="EXCEPTION",
+            exception_type="STATUS_MISMATCH",
+            difference=Decimal("0.00"),
+            requires_manual_review=False,
+            rule_version="v1",
+        )
+
+        high_risk = assess_exception_risk(
+            missing_settlement.id
+        )
+
+        medium_risk = assess_exception_risk(
+            status_mismatch.id
+        )
+
+        self.assertEqual(
+            high_risk["risk_level"],
+            "HIGH",
+        )
+
+        self.assertEqual(
+            medium_risk["risk_level"],
+            "MEDIUM",
+        )
+
+        self.assertGreater(
+            high_risk["priority_score"],
+            medium_risk["priority_score"],
+        )
+
+        self.assertIn(
+            "Missing financial evidence",
+            " ".join(
+                high_risk["priority_reasons"]
+            ),
+        )

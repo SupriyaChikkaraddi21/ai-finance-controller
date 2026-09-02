@@ -121,20 +121,15 @@ def get_required_investigation_ids(
             []
         )
     )
-
     candidates.sort(
         key=lambda item: (
-            priority_order.get(
-                item.get(
-                    "risk_level",
-                    "LOW"
-                ),
-                99,
+            -item.get(
+                "priority_score",
+                0,
             ),
             item["reconciliation_id"],
         )
     )
-
     # Require investigation of the bounded deterministic
     # exception population selected for this controller run.
     # The full population remains available for deterministic
