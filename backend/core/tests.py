@@ -325,3 +325,77 @@ class FinanceControllerModelTests(TestCase):
             audit.metadata["resolved_by"],
             "finance_controller",
         )
+    @patch("core.agent.controller.get_client")
+    def test_controller_handles_gemini_unavailable(
+        self,
+        mock_get_client,
+    ):
+        """Gemini failure must stop investigation and require manual review."""
+
+        exception = ReconciliationResult.objects.create(
+            transaction=Transaction.objects.create(
+                transaction_id="TEST_TXN_004",
+                order_id="TEST_ORDER_004",
+                payment_amount=Decimal("1000.00"),
+                fee=Decimal("20.00"),
+                refund=Decimal("0.00"),
+                adjustment=Decimal("0.00"),
+                expected_settlement=Decimal("980.00"),
+                actual_settlement=Decimal("900.00"),
+                payment_status="SUCCESS",
+                settlement_status="SETTLED",
+                batch=self.batch,
+            ),
+            result="EXCEPTION",
+            exception_type="AMOUNT_MISMATCH",
+            difference=Decimal("-80.00"),
+            requires_manual_review=True,
+            rule_version="v1",
+        )
+
+        mock_client = mock_get_client.return_value
+
+        mock_client.models.generate_content.side_effect = (
+            RuntimeError("Gemini service unavailable")
+        )
+
+        from .agent.controller import run_controller_agent
+
+        report = run_controller_agent(
+            self.batch.id
+        )
+
+        self.assertEqual(
+            report["llm_status"],
+            "UNAVAILABLE",
+        )
+
+        self.assertEqual(
+            report["investigation"]["status"],
+            "NOT_STARTED",
+        )
+
+        self.assertEqual(
+            report["investigation"]["exceptions_available"],
+            1,
+        )
+
+        self.assertEqual(
+            report["investigation"]["exceptions_inspected"],
+            0,
+        )
+
+        self.assertEqual(
+            report["investigation"]["uninspected_exceptions"],
+            1,
+        )
+
+        self.assertEqual(
+            report["investigation"]["investigation_coverage"],
+            0,
+        )
+
+        self.assertIn(
+            "Gemini reasoning was unavailable",
+            report["final_response"],
+        )

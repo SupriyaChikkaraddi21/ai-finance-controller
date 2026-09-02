@@ -85,16 +85,17 @@ def create_transaction(transaction_id, case_type):
         )
 
         actual_settlement = expected_settlement
-
     # ==================================================
-    # FEE DIFFERENCE
+    # CALCULATION MISMATCH
     # ==================================================
 
-    elif case_type == "UNKNOWN":
+    elif case_type == "CALCULATION_MISMATCH":
 
-        actual_settlement = money(
-            expected_settlement - 20
+        expected_settlement = money(
+            expected_settlement - 50
         )
+
+        actual_settlement = expected_settlement
 
     # ==================================================
     # MISSING SETTLEMENT
@@ -133,16 +134,6 @@ def create_transaction(transaction_id, case_type):
     elif case_type == "STATUS_MISMATCH":
 
         settlement_status = "FAILED"
-
-    # ==================================================
-    # UNKNOWN / UNEXPLAINED DIFFERENCE
-    # ==================================================
-
-    elif case_type == "UNKNOWN":
-
-        actual_settlement = money(
-            expected_settlement - 73
-        )
 
     return {
         "transaction_id": transaction_id,
@@ -183,18 +174,15 @@ def main():
 
     transactions = []
     ground_truth = []
-
     cases = [
         ("MATCHED", 70),
         ("REFUND", 5),
         ("MISSING_SETTLEMENT", 4),
         ("MISSING_PAYMENT", 3),
-        ("AMOUNT_MISMATCH", 5),
-        ("DUPLICATE", 3),
+        ("CALCULATION_MISMATCH", 12),
         ("STATUS_MISMATCH", 3),
-        ("AMOUNT_MISMATCH", 7),
+        ("DUPLICATE", 3),
     ]
-
     transaction_number = 1
 
     # ==================================================

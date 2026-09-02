@@ -18,7 +18,7 @@
         "exception_rate": 25.0
     },
     "per_class_metrics": {
-        "AMOUNT_MISMATCH": {
+        "CALCULATION_MISMATCH": {
             "precision": 1.0,
             "recall": 1.0,
             "f1": 1.0,
@@ -56,8 +56,8 @@
         }
     },
     "confusion_matrix": {
-        "AMOUNT_MISMATCH": {
-            "AMOUNT_MISMATCH": 12,
+        "CALCULATION_MISMATCH": {
+            "CALCULATION_MISMATCH": 12,
             "DUPLICATE": 0,
             "MATCHED": 0,
             "MISSING_PAYMENT": 0,
@@ -65,7 +65,7 @@
             "STATUS_MISMATCH": 0
         },
         "DUPLICATE": {
-            "AMOUNT_MISMATCH": 0,
+            "CALCULATION_MISMATCH": 0,
             "DUPLICATE": 3,
             "MATCHED": 0,
             "MISSING_PAYMENT": 0,
@@ -73,7 +73,7 @@
             "STATUS_MISMATCH": 0
         },
         "MATCHED": {
-            "AMOUNT_MISMATCH": 0,
+            "CALCULATION_MISMATCH": 0,
             "DUPLICATE": 0,
             "MATCHED": 75,
             "MISSING_PAYMENT": 0,
@@ -81,7 +81,7 @@
             "STATUS_MISMATCH": 0
         },
         "MISSING_PAYMENT": {
-            "AMOUNT_MISMATCH": 0,
+            "CALCULATION_MISMATCH": 0,
             "DUPLICATE": 0,
             "MATCHED": 0,
             "MISSING_PAYMENT": 3,
@@ -89,7 +89,7 @@
             "STATUS_MISMATCH": 0
         },
         "MISSING_SETTLEMENT": {
-            "AMOUNT_MISMATCH": 0,
+            "CALCULATION_MISMATCH": 0,
             "DUPLICATE": 0,
             "MATCHED": 0,
             "MISSING_PAYMENT": 0,
@@ -97,7 +97,7 @@
             "STATUS_MISMATCH": 0
         },
         "STATUS_MISMATCH": {
-            "AMOUNT_MISMATCH": 0,
+            "CALCULATION_MISMATCH": 0,
             "DUPLICATE": 0,
             "MATCHED": 0,
             "MISSING_PAYMENT": 0,
@@ -106,7 +106,7 @@
         }
     },
     "exception_distribution": {
-        "AMOUNT_MISMATCH": {
+        "CALCULATION_MISMATCH": {
             "count": 12,
             "percentage": 12.0
         },
