@@ -366,6 +366,41 @@ console.log(
       );
     }
   };
+  const exportControllerReport = () => {
+    if (!controllerReport) {
+      return;
+    }
+
+    const report = {
+      exported_at: new Date().toISOString(),
+      batch_id: selectedBatch,
+      batch_metrics: metrics,
+      controller_report: controllerReport,
+    };
+
+    const blob = new Blob(
+      [JSON.stringify(report, null, 2)],
+      {
+        type: "application/json",
+      }
+    );
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download =
+      `finance-controller-report-batch-${selectedBatch}.json`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  };
 
 const runController = async () => {
   if (!selectedBatch) {
@@ -484,6 +519,18 @@ const runController = async () => {
 
       return acc;
     }, {});
+  const exceptionVisualization = Object.entries(
+    exceptionCounts
+  ).map(([type, count]) => ({
+    type,
+    count,
+    percentage:
+      exceptions.length > 0
+        ? Number(
+            ((count / exceptions.length) * 100).toFixed(1)
+          )
+        : 0,
+  }));
 
   return (
     <div className="app">
@@ -816,6 +863,161 @@ const runController = async () => {
                 <div>
 
                   <span className="eyebrow">
+                    EXCEPTION ANALYSIS
+                  </span>
+
+                  <h3>
+                    Exception Distribution
+                  </h3>
+
+                </div>
+
+                <span className="metric-description">
+                  {exceptionRecords} exceptions identified by deterministic reconciliation
+                </span>
+
+              </div>
+
+              <div className="visualization-card">
+
+                {exceptionVisualization.length > 0 ? (
+
+                  exceptionVisualization.map((item) => (
+
+                    <div
+                      className="exception-bar-row"
+                      key={item.type}
+                    >
+
+                      <div className="exception-bar-label">
+
+                        <span>
+                          {item.type.replaceAll("_", " ")}
+                        </span>
+
+                        <strong>
+                          {item.count} · {item.percentage}%
+                        </strong>
+
+                      </div>
+
+                      <div className="exception-bar-track">
+
+                        <div
+                          className="exception-bar-fill"
+                          style={{
+                            width: `${item.percentage}%`,
+                          }}
+                        />
+
+                      </div>
+
+                    </div>
+
+                  ))
+
+                ) : (
+
+                  <div className="benchmark-empty">
+                    No exceptions identified in this batch.
+                  </div>
+
+                )}
+
+              </div>
+
+            </section>
+
+            <section className="section">
+
+              <div className="section-header">
+
+                <div>
+
+                  <span className="eyebrow">
+                    INVESTIGATION COVERAGE
+                  </span>
+
+                  <h3>
+                    Controller Investigation Coverage
+                  </h3>
+
+                </div>
+
+                <span className="metric-description">
+                  AI investigation progress for the selected batch
+                </span>
+
+              </div>
+
+              <div className="coverage-visualization">
+
+                <div className="coverage-stat">
+
+                  <strong>
+                    {controllerReport?.investigation?.exceptions_inspected ?? 0}
+                  </strong>
+
+                  <span>
+                    Inspected
+                  </span>
+
+                </div>
+
+                <div className="coverage-stat">
+
+                  <strong>
+                    {controllerReport?.investigation?.uninspected_exceptions ??
+                      exceptionRecords}
+                  </strong>
+
+                  <span>
+                    Uninspected
+                  </span>
+
+                </div>
+
+                <div className="coverage-stat">
+
+                  <strong>
+                    {controllerReport?.investigation?.investigation_coverage ?? 0}%
+                  </strong>
+
+                  <span>
+                    Coverage
+                  </span>
+
+                </div>
+
+              </div>
+
+              <div className="coverage-bar-track">
+
+                <div
+                  className="coverage-bar-fill"
+                  style={{
+                    width: `${
+                      controllerReport?.investigation?.investigation_coverage ?? 0
+                    }%`,
+                  }}
+                />
+
+              </div>
+
+              <p className="metric-description">
+                Coverage reflects exceptions actually investigated by the
+                controller, not merely exceptions detected by reconciliation.
+              </p>
+
+            </section>
+
+            <section className="section">
+
+              <div className="section-header">
+
+                <div>
+
+                  <span className="eyebrow">
                     ENGINE PERFORMANCE
                   </span>
 
@@ -1011,18 +1213,31 @@ const runController = async () => {
       </h3>
     </div>
 
-    <button
-      className="controller-button"
-      onClick={runController}
-      disabled={
-        controllerLoading ||
-        !selectedBatch
-      }
-    >
-      {controllerLoading
-        ? "Running Controller..."
-        : "Run Finance Controller"}
-    </button>
+    <div className="controller-actions">
+
+      <button
+        className="controller-button"
+        onClick={runController}
+        disabled={
+          controllerLoading ||
+          !selectedBatch
+        }
+      >
+        {controllerLoading
+          ? "Running Controller..."
+          : "Run Finance Controller"}
+      </button>
+
+      {controllerReport && (
+        <button
+          className="controller-button secondary"
+          onClick={exportControllerReport}
+        >
+          Export Controller Report
+        </button>
+      )}
+
+    </div>
 
   </div>
 
@@ -1321,16 +1536,21 @@ const runController = async () => {
 
                 return (
                   <li key={index}>
-
                     {trace.step > 0 && (
-  <>
-    <strong>
-      STEP {trace.step}
-    </strong>
+                      <>
+                        <strong>
+                          STEP {trace.step}
+                        </strong>
 
-    {"  "}
-  </>
-)}
+                        {" "}
+
+                        {type === "MODEL_CALL_BUDGET_REACHED" && (
+                          <strong>
+                            CONTROLLER STOPPED — MODEL CALL BUDGET REACHED
+                          </strong>
+                        )}
+                      </>
+                    )}
                     {type === "TOOL_CALL" && (
                       <>
                         <strong>

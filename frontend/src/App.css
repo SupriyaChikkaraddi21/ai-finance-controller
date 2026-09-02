@@ -1946,3 +1946,132 @@ tbody tr:hover {
     min-width: 720px;
   }
 }
+/* Controller action buttons */
+
+.controller-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.controller-button.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: inherit;
+}
+/* ==========================================================
+   FINANCE VISUALIZATIONS
+   ========================================================== */
+
+.visualization-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.exception-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exception-bar-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.exception-bar-label span {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.exception-bar-label strong {
+  font-size: 12px;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.exception-bar-track {
+  width: 100%;
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.exception-bar-fill {
+  height: 100%;
+  min-width: 3px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.75;
+  transition: width 0.4s ease;
+}
+
+.coverage-visualization {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.coverage-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.coverage-stat strong {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.coverage-stat span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.65;
+  text-transform: uppercase;
+}
+
+.coverage-bar-track {
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  margin-top: 20px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+}
+
+.coverage-bar-fill {
+  height: 100%;
+  min-width: 0;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.75;
+  transition: width 0.4s ease;
+}
+
+@media (max-width: 700px) {
+
+  .coverage-visualization {
+    grid-template-columns: 1fr;
+  }
+
+  .exception-bar-label {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+}

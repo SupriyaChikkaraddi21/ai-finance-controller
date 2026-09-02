@@ -574,6 +574,7 @@ def run_agent_loop(
     analyses_inspected = set()
     analyses_verified = set()
     risks_assessed = set()
+    risk_cache = {}
 
     # --------------------------------------------------------
     # REUSE EXISTING AI ANALYSES
