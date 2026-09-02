@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from django.db.models import Count
 
+from core.ai_analysis_service import analyze_exception
+
 from ..models import (
     Batch,
     Transaction,
@@ -290,6 +292,43 @@ def get_ai_analysis(
             float(analysis.confidence)
             if analysis.confidence is not None
             else None
+        ),
+        "recommended_action": (
+            analysis.recommended_action
+        ),
+        "evidence_summary": (
+            analysis.evidence_summary
+        ),
+        "model_name": analysis.model_name,
+        "prompt_version": analysis.prompt_version,
+    }
+
+
+# ============================================================
+# TOOL 5 — ANALYZE EXCEPTION
+# ============================================================
+
+def analyze_exception_for_controller(
+    reconciliation_id: int
+):
+    """
+    Generate an AI analysis for one reconciliation exception.
+
+    This is an agent tool wrapper around the AI analysis service.
+    Deterministic reconciliation remains the financial source
+    of truth.
+    """
+
+    analysis = analyze_exception(
+        reconciliation_id
+    )
+
+    return {
+        "reconciliation_id": reconciliation_id,
+        "classification": analysis.classification,
+        "explanation": analysis.explanation,
+        "confidence": float(
+            analysis.confidence
         ),
         "recommended_action": (
             analysis.recommended_action
