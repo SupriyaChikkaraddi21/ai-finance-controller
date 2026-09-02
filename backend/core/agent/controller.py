@@ -66,38 +66,6 @@ def get_client():
 # ============================================================
 # AGENT TOOLS
 # ============================================================
-
-def inspect_batch(
-    batch_id: int
-):
-
-    return get_batch_summary(
-        batch_id
-    )
-def inspect_investigation_scope(
-    batch_id: int
-):
-
-    return get_investigation_scope(
-        batch_id
-    )
-
-def inspect_exceptions(
-    batch_id: int
-):
-
-    return get_batch_exceptions(
-        batch_id
-    )
-
-
-def inspect_evidence(
-    reconciliation_id: int
-):
-
-    return get_transaction_evidence(
-        reconciliation_id
-    )
 def get_required_investigation_ids(
     batch_id
 ):
@@ -143,14 +111,6 @@ def get_required_investigation_ids(
         ]
     }
 
-
-def inspect_ai_analysis(
-    reconciliation_id: int
-):
-
-    return get_ai_analysis(
-        reconciliation_id
-    )
 def analyze_exception_for_controller(
     reconciliation_id: int
 ):
@@ -175,21 +135,6 @@ def analyze_exception_for_controller(
         "model_name": analysis.model_name,
         "prompt_version": analysis.prompt_version,
     }
-def verify_analysis(
-    reconciliation_id: int
-):
-
-    return verify_ai_analysis(
-        reconciliation_id
-    )
-def assess_risk(
-    reconciliation_id: int
-):
-    return assess_exception_risk(
-        reconciliation_id
-    )
-
-
 # ============================================================
 # TOOL DECLARATIONS
 # ============================================================
@@ -391,55 +336,46 @@ def execute_tool(
 ):
 
     if name == "inspect_batch":
-
-        return inspect_batch(
+        return get_batch_summary(
             arguments["batch_id"]
         )
 
     if name == "inspect_exceptions":
-
-        return inspect_exceptions(
+        return get_batch_exceptions(
             arguments["batch_id"]
         )
 
     if name == "inspect_investigation_scope":
-
-        return inspect_investigation_scope(
+        return get_investigation_scope(
             arguments["batch_id"]
         )
 
     if name == "inspect_evidence":
-
-        return inspect_evidence(
+        return get_transaction_evidence(
             arguments["reconciliation_id"]
         )
 
     if name == "inspect_ai_analysis":
-
-        return inspect_ai_analysis(
+        return get_ai_analysis(
             arguments["reconciliation_id"]
         )
 
     if name == "analyze_exception":
-
         return analyze_exception_for_controller(
             arguments["reconciliation_id"]
         )
 
     if name == "verify_analysis":
-
-        return verify_analysis(
+        return verify_ai_analysis(
             arguments["reconciliation_id"]
         )
 
     if name == "assess_risk":
-
-        return assess_risk(
+        return assess_exception_risk(
             arguments["reconciliation_id"]
         )
 
     if name == "FINALIZE":
-
         return {
             "finalized": True,
             "reason": (
@@ -451,7 +387,6 @@ def execute_tool(
     raise ValueError(
         f"Unknown agent tool: {name}"
     )
-
 
 # ============================================================
 # REAL AGENT LOOP
@@ -531,9 +466,8 @@ def run_agent_loop(
     # Get the exception count directly from the deterministic
     # reconciliation backend before Gemini is called.
     # --------------------------------------------------------
-
     exceptions_available = len(
-        inspect_exceptions(
+        get_batch_exceptions(
             batch_id
         )
     )
@@ -1771,7 +1705,7 @@ def run_controller_agent(
                 "reconciliation_id"
             ]
         )
-        risk = assess_risk(
+        risk = assess_exception_risk(
             reconciliation_id
         )
 
