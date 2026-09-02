@@ -29,6 +29,7 @@ from .prompts import (
     CONTROLLER_SYSTEM_PROMPT,
     CONTROLLER_TASK_PROMPT,
 )
+from .loop_state import InvestigationState
 
 
 load_dotenv()
@@ -503,13 +504,9 @@ def run_agent_loop(
         else 100
     )
 
-    exceptions_inspected = set()
-    evidence_inspected = set()
-    analyses_inspected = set()
-    analyses_verified = set()
-    risks_assessed = set()
-    risk_cache = {}
-
+    state = InvestigationState(
+        exceptions_available=exceptions_available,
+    )
     # --------------------------------------------------------
     # REUSE EXISTING AI ANALYSES
     #
@@ -534,24 +531,25 @@ def run_agent_loop(
             risk = assess_exception_risk(
                 reconciliation_id
             )
-            risk_cache[reconciliation_id] = risk
 
-            analyses_inspected.add(
+            state.risk_cache[reconciliation_id] = risk
+
+            state.analyses_inspected.add(
                 reconciliation_id
             )
 
-            risks_assessed.add(
+            state.risks_assessed.add(
                 reconciliation_id
             )
 
             if verification.get("verified") is True:
-                analyses_verified.add(
+                state.analyses_verified.add(
                     reconciliation_id
                 )
 
                 # A persisted analysis counts as investigated
                 # only after successful deterministic verification.
-                exceptions_inspected.add(
+                state.exceptions_inspected.add(
                     reconciliation_id
                 )
 
@@ -621,7 +619,7 @@ def run_agent_loop(
     if (
         required_investigation_ids
         and required_investigation_ids
-        <= exceptions_inspected
+        <= state.exceptions_inspected
     ):
         final_reason = (
             "Controller investigation completed using "
@@ -641,7 +639,7 @@ def run_agent_loop(
                 "coverage": 100.0,
                 "exceptions_available": exceptions_available,
                 "exceptions_inspected": len(
-                    exceptions_inspected
+                    state.exceptions_inspected
                 ),
                 "uninspected_exceptions": 0,
                 "status": "SUCCESS",
@@ -659,22 +657,22 @@ def run_agent_loop(
             "investigation": {
                 "exceptions_available": exceptions_available,
                 "exceptions_inspected": len(
-                    exceptions_inspected
+                    state.exceptions_inspected
                 ),
                 "inspected_reconciliation_ids": sorted(
-                    exceptions_inspected
+                    state.exceptions_inspected
                 ),
                 "evidence_inspected": len(
-                    evidence_inspected
+                    state.evidence_inspected
                 ),
                 "analyses_inspected": len(
-                    analyses_inspected
+                    state.analyses_inspected
                 ),
                 "analyses_verified": len(
-                    analyses_verified
+                    state.analyses_verified
                 ),
                 "risks_assessed": len(
-                    risks_assessed
+                    state.risks_assessed
                 ),
                 "investigation_coverage": 100.0,
                 "uninspected_exceptions": 0,
@@ -697,9 +695,9 @@ def run_agent_loop(
             final_response = (
                 "Controller investigation stopped after reaching "
                 f"the Gemini model-call budget of {MAX_GEMINI_CALLS}. "
-                f"{len(exceptions_inspected)} of "
+                f"{len(state.exceptions_inspected)} of "
                 f"{exceptions_available} exceptions were inspected. "
-                f"{exceptions_available - len(exceptions_inspected)} "
+                f"{state.uninspected_exceptions()} "
                 "exceptions remain unresolved and require further "
                 "automated investigation or manual review."
             )
@@ -713,7 +711,7 @@ def run_agent_loop(
                     "model_calls_used": model_call_count,
                     "exceptions_available": exceptions_available,
                     "exceptions_inspected": len(
-                        exceptions_inspected
+                        state.exceptions_inspected
                     ),
                 }
             )
@@ -728,32 +726,25 @@ def run_agent_loop(
                 "investigation": {
                     "exceptions_available": exceptions_available,
                     "exceptions_inspected": len(
-                        exceptions_inspected
+                        state.exceptions_inspected
                     ),
                     "evidence_inspected": len(
-                        evidence_inspected
+                        state.evidence_inspected
                     ),
                     "analyses_inspected": len(
-                        analyses_inspected
+                        state.analyses_inspected
                     ),
                     "analyses_verified": len(
-                        analyses_verified
+                        state.analyses_verified
                     ),
                     "risks_assessed": len(
-                        risks_assessed
+                        state.risks_assessed
                     ),
                     "investigation_coverage": (
-                        round(
-                            len(exceptions_inspected)
-                            / exceptions_available * 100,
-                            2,
-                        )
-                        if exceptions_available
-                        else 100
+                        state.investigation_coverage()
                     ),
                     "uninspected_exceptions": (
-                        exceptions_available
-                        - len(exceptions_inspected)
+                        state.uninspected_exceptions()
                     ),
                     "status": "BLOCKED_MODEL_CALL_BUDGET",
                 },
@@ -768,7 +759,6 @@ def run_agent_loop(
                 flush=True,
             )
 
-
             response = client.models.generate_content(
                 model=MODEL_NAME,
                 contents=contents,
@@ -778,8 +768,6 @@ def run_agent_loop(
                     temperature=0.1,
                 ),
             )
-
-
 
         except Exception as error:
             print(
@@ -811,10 +799,10 @@ def run_agent_loop(
                 final_response = (
                     "Investigation was blocked because the Gemini "
                     "API quota was exhausted. "
-                    f"{len(exceptions_inspected)} of "
+                    f"{len(state.exceptions_inspected)} of "
                     f"{exceptions_available} exceptions were inspected "
                     f"before the quota limit was reached. "
-                    f"{exceptions_available - len(exceptions_inspected)} "
+                    f"{state.uninspected_exceptions()} "
                     "exceptions remain unresolved and require "
                     "further automated investigation or manual review."
                 )
@@ -822,9 +810,9 @@ def run_agent_loop(
                 final_response = (
                     "Investigation could not continue because Gemini "
                     "reasoning was unavailable. "
-                    f"{len(exceptions_inspected)} of "
+                    f"{len(state.exceptions_inspected)} of "
                     f"{exceptions_available} exceptions were inspected. "
-                    f"{exceptions_available - len(exceptions_inspected)} "
+                    f"{state.uninspected_exceptions()} "
                     "exceptions remain unresolved and require "
                     "further automated investigation or manual review."
                 )
@@ -848,28 +836,30 @@ def run_agent_loop(
                 "llm_error": error_message,
                 "investigation": {
                     "exceptions_available": exceptions_available,
-                    "exceptions_inspected": len(exceptions_inspected),
-                    "evidence_inspected": len(evidence_inspected),
-                    "analyses_inspected": len(analyses_inspected),
-                    "analyses_verified": len(analyses_verified),
-                    "risks_assessed": len(risks_assessed),
+                    "exceptions_inspected": len(
+                        state.exceptions_inspected
+                    ),
+                    "evidence_inspected": len(
+                        state.evidence_inspected
+                    ),
+                    "analyses_inspected": len(
+                        state.analyses_inspected
+                    ),
+                    "analyses_verified": len(
+                        state.analyses_verified
+                    ),
+                    "risks_assessed": len(
+                        state.risks_assessed
+                    ),
                     "investigation_coverage": (
-                        round(
-                            len(exceptions_inspected)
-                            / exceptions_available * 100,
-                            2,
-                        )
-                        if exceptions_available
-                        else 100
+                        state.investigation_coverage()
                     ),
                     "uninspected_exceptions": (
-                        exceptions_available
-                        - len(exceptions_inspected)
+                        state.uninspected_exceptions()
                     ),
                     "status": investigation_status,
                 },
             }
-
         # ----------------------------------------------------
         # Preserve Gemini response
         # ----------------------------------------------------
@@ -925,12 +915,12 @@ def run_agent_loop(
                 coverage,
             ) = get_investigation_status(
                 exceptions_available,
-                exceptions_inspected,
+                state.exceptions_inspected,
             )
 
             unresolved_required_ids = (
                 required_investigation_ids
-                - exceptions_inspected
+                - state.exceptions_inspected
             )
 
             # ------------------------------------------------
@@ -1020,19 +1010,19 @@ def run_agent_loop(
                         inspected_count
                     ),
                     "inspected_reconciliation_ids": sorted(
-                        exceptions_inspected
+                        state.exceptions_inspected
                     ),
                     "evidence_inspected": len(
-                        evidence_inspected
+                        state.evidence_inspected
                     ),
                     "analyses_inspected": len(
-                        analyses_inspected
+                        state.analyses_inspected
                     ),
                     "analyses_verified": len(
-                        analyses_verified
+                        state.analyses_verified
                     ),
                     "risks_assessed": len(
-                        risks_assessed
+                        state.risks_assessed
                     ),
                     "investigation_coverage": (
                         coverage
@@ -1078,12 +1068,12 @@ def run_agent_loop(
                 coverage,
             ) = get_investigation_status(
                 exceptions_available,
-                exceptions_inspected,
+                state.exceptions_inspected,
             )
 
             unresolved_required_ids = (
                 required_investigation_ids
-                - exceptions_inspected
+                - state.exceptions_inspected
             )
 
             # ------------------------------------------------
@@ -1207,16 +1197,16 @@ def run_agent_loop(
                         inspected_count
                     ),
                     "evidence_inspected": len(
-                        evidence_inspected
+                        state.evidence_inspected
                     ),
                     "analyses_inspected": len(
-                        analyses_inspected
+                        state.analyses_inspected
                     ),
                     "analyses_verified": len(
-                        analyses_verified
+                        state.analyses_verified
                     ),
                     "risks_assessed": len(
-                        risks_assessed
+                        state.risks_assessed
                     ),
                     "investigation_coverage": (
                         coverage
@@ -1243,7 +1233,7 @@ def run_agent_loop(
 
         unresolved_required_ids = (
             required_investigation_ids
-            - exceptions_inspected
+            - state.exceptions_inspected
         )
 
         requested_reconciliation_id = arguments.get(
@@ -1384,22 +1374,22 @@ def run_agent_loop(
                     )
 
                     if tool_name == "inspect_evidence":
-                        evidence_inspected.add(
+                        state.evidence_inspected.add(
                             reconciliation_id
                         )
 
                     elif tool_name == "inspect_ai_analysis":
-                        analyses_inspected.add(
+                        state.analyses_inspected.add(
                             reconciliation_id
                         )
 
                     elif tool_name == "analyze_exception":
-                        analyses_inspected.add(
+                        state.analyses_inspected.add(
                             reconciliation_id
                         )
 
                     elif tool_name == "assess_risk":
-                        risks_assessed.add(
+                        state.risks_assessed.add(
                             reconciliation_id
                         )
 
@@ -1408,10 +1398,10 @@ def run_agent_loop(
                             isinstance(result, dict)
                             and result.get("verified") is True
                         ):
-                            analyses_verified.add(
+                            state.analyses_verified.add(
                                 reconciliation_id
                             )
-                            exceptions_inspected.add(
+                            state.exceptions_inspected.add(
                                 reconciliation_id
                             )
 
@@ -1500,25 +1490,25 @@ def run_agent_loop(
         "investigation": {
             "exceptions_available": exceptions_available,
             "exceptions_inspected": len(
-                exceptions_inspected
+                state.exceptions_inspected
             ),
             "evidence_inspected": len(
-                evidence_inspected
+                state.evidence_inspected
             ),
             "analyses_inspected": len(
-                analyses_inspected
+                state.analyses_inspected
             ),
             "analyses_verified": len(
-                analyses_verified
+                state.analyses_verified
             ),
             "risks_assessed": len(
-                risks_assessed
+                state.risks_assessed
             ),
             "investigation_coverage": (
                 round(
                     (
                         len(
-                            exceptions_inspected
+                            state.exceptions_inspected
                         )
                         / exceptions_available
                         * 100
@@ -1531,7 +1521,7 @@ def run_agent_loop(
             "uninspected_exceptions": (
                 exceptions_available
                 - len(
-                    exceptions_inspected
+                    state.exceptions_inspected
                 )
             ),
             "finalization_decision": (
