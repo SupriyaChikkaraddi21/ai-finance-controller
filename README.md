@@ -372,6 +372,17 @@ The controller uses risk information to determine which exceptions require deepe
 
 The Finance Controller Agent acts as an investigation orchestrator.
 
+The controller architecture is separated into focused components:
+
+- `controller.py` — controller entry point and orchestration
+- `agent_loop.py` — bounded Gemini/tool-call investigation loop
+- `tools.py` — investigation and financial evidence tools
+- `tool_registry.py` — controller tool declarations and dispatch
+- `prompts.py` — controller system and task prompts
+- `loop_state.py` — investigation coverage and operational state
+- `decisions.py` — investigation and finalization decisions
+- `reporting.py` — authoritative controller report construction
+
 It is not the financial reconciliation engine.
 
 The controller can inspect:
@@ -685,20 +696,25 @@ It can only analyze and explain an exception using the evidence provided by the 
 - Python virtual environment
 
 ---
-
 ## Project Structure
 
 ```text
 ai-finance-controller/
-|
+│
 ├── backend/
 │   ├── core/
 │   │   ├── agent/
 │   │   │   ├── controller.py
+│   │   │   ├── agent_loop.py
+│   │   │   ├── tools.py
+│   │   │   ├── tool_registry.py
 │   │   │   ├── prompts.py
-│   │   │   └── tools.py
+│   │   │   ├── loop_state.py
+│   │   │   ├── decisions.py
+│   │   │   └── reporting.py
 │   │   │
 │   │   ├── ai_analysis_service.py
+│   │   ├── reconciliation_rules.py
 │   │   ├── reconciliation_service.py
 │   │   ├── models.py
 │   │   ├── serializers.py
@@ -707,11 +723,27 @@ ai-finance-controller/
 │   │   └── tests.py
 │   │
 │   ├── manage.py
-│   ├── requirements.txt
 │   └── .env.example
 │
 ├── frontend/
 │   ├── src/
+│   │   ├── components/
+│   │   │   ├── AuditTrail.jsx
+│   │   │   ├── ControllerReview.jsx
+│   │   │   ├── ExceptionDistribution.jsx
+│   │   │   ├── ExceptionInvestigation.jsx
+│   │   │   ├── FinancialOverview.jsx
+│   │   │   ├── InvestigationCoverage.jsx
+│   │   │   └── PerformanceBenchmark.jsx
+│   │   │
+│   │   ├── styles/
+│   │   │   ├── audit.css
+│   │   │   ├── benchmark.css
+│   │   │   ├── controller.css
+│   │   │   ├── exceptions.css
+│   │   │   ├── financial.css
+│   │   │   └── investigation.css
+│   │   │
 │   │   ├── App.jsx
 │   │   ├── App.css
 │   │   ├── index.css
@@ -737,7 +769,6 @@ ai-finance-controller/
 │
 ├── requirements.txt
 └── README.md
-```
 
 ---
 
@@ -869,6 +900,33 @@ npm run dev
 The React frontend provides the controller dashboard for interacting with batches, metrics, exceptions, AI analysis, and controller investigation.
 
 ---
+---
+
+## Demo Workflow
+
+After starting the backend and frontend, use the React dashboard for the complete finance-controller workflow:
+
+1. Open the React dashboard in the browser.
+2. Click **Run Reconciliation** to create a new reconciliation batch.
+3. The system processes the synthetic financial dataset and displays the deterministic results:
+   - 100 total records
+   - 75 matched records
+   - 25 exceptions
+   - 75% match rate
+4. Select an exception to inspect its deterministic financial evidence.
+5. Click **Analyze Exception** for AI-assisted interpretation of the exception.
+6. Review the AI classification, evidence summary, confidence, and recommended action.
+7. Run the **Finance Controller** to investigate the exception population.
+8. Review deterministic risk prioritization and investigation coverage.
+9. The controller uses a bounded investigation process and reports partial coverage when its model-call budget prevents complete investigation.
+10. Make the final human controller decision:
+    - **Approve**
+    - **Reject**
+    - **Escalate**
+11. Review the **Audit Trail** for reconciliation, investigation, AI analysis, and human-review events.
+12. Use **Export Controller Report** to export the controller investigation report as JSON.
+
+> Each intentional **Run Reconciliation** execution creates a new reconciliation batch. Previous batches remain available for historical review and auditability.
 
 ## Running Deterministic Reconciliation
 
@@ -960,6 +1018,8 @@ The reliability tests verify the expected AI classification contract and record 
 
 ## Current Project Status
 
+## Current Project Status
+
 The current implementation has:
 
 - Synthetic financial transaction dataset
@@ -969,21 +1029,32 @@ The current implementation has:
 - Financial exception classification
 - PostgreSQL-backed reconciliation persistence
 - Batch metrics
+- Performance benchmarking
 - AI exception analysis
 - Controlled AI evidence
 - AI classification verification
-- Risk assessment
+- AI failure and quota fallback handling
+- Deterministic exception risk assessment
+- Financial-exposure-based exception prioritization
 - Finance Controller Agent
+- Bounded controller investigation loop
+- Investigation coverage tracking
 - Controller investigation tools
-- Audit logging
+- Controller report generation
+- Exportable controller report
+- Human-in-the-loop exception resolution
+- Approve / Reject / Escalate workflow
+- Audit logging and audit trail
+- Exception distribution visualization
+- Investigation coverage visualization
 - Automated deterministic evaluation
 - Automated AI evaluation
 - AI reliability testing
 - AI API failure recording
 - React dashboard
-- Controller decision/audit panel
+- Modular controller and investigation UI
+- Modular frontend styling
 - Git/GitHub version control
-
 ---
 
 ## Current Evaluation Snapshot
