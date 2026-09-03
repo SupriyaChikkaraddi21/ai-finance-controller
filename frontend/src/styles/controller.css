@@ -221,7 +221,7 @@
 
 .controller-button.secondary {
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid #e0e6ea;
   color: inherit;
 }
 

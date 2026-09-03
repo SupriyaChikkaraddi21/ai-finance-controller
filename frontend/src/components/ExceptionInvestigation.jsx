@@ -176,7 +176,7 @@ function ExceptionInvestigation({
 
             <div className="investigation-header">
               <div>
-                <span className="eyebrow">
+                <span className="eyebrow step-eyebrow step-deterministic">
                   STEP 1 · DETERMINISTIC INVESTIGATION
                 </span>
 
@@ -206,7 +206,7 @@ function ExceptionInvestigation({
 
             <div className="investigation-grid">
 
-              <div>
+              <div className="investigation-field">
                 <span>
                   EXCEPTION TYPE
                 </span>
@@ -215,7 +215,7 @@ function ExceptionInvestigation({
                 </strong>
               </div>
 
-              <div>
+              <div className="investigation-field">
                 <span>
                   FINANCIAL DIFFERENCE
                 </span>
@@ -226,7 +226,7 @@ function ExceptionInvestigation({
                 </strong>
               </div>
 
-              <div>
+              <div className="investigation-field">
                 <span>
                   MANUAL REVIEW
                 </span>
@@ -237,7 +237,7 @@ function ExceptionInvestigation({
                 </strong>
               </div>
 
-              <div>
+              <div className="investigation-field">
                 <span>
                   RECONCILIATION ID
                 </span>
@@ -256,56 +256,58 @@ function ExceptionInvestigation({
 
               <div className="evidence-grid">
 
-                <div>
+                <div className="evidence-item">
                   <span>PAYMENT</span>
                   <strong>
                     ₹{selectedException.payment_amount}
                   </strong>
                 </div>
 
-                <div>
+                <div className="evidence-item">
                   <span>FEE</span>
                   <strong>
                     ₹{selectedException.fee}
                   </strong>
                 </div>
 
-                <div>
+                <div className="evidence-item">
                   <span>REFUND</span>
                   <strong>
                     ₹{selectedException.refund}
                   </strong>
                 </div>
 
-                <div>
+                <div className="evidence-item">
                   <span>ADJUSTMENT</span>
                   <strong>
                     ₹{selectedException.adjustment}
                   </strong>
                 </div>
 
-                <div>
+                <div className="evidence-item">
                   <span>EXPECTED SETTLEMENT</span>
                   <strong>
                     ₹{selectedException.expected_settlement}
                   </strong>
                 </div>
 
-                <div>
+                <div className="evidence-item">
                   <span>ACTUAL SETTLEMENT</span>
                   <strong>
-                    ₹{selectedException.actual_settlement}
+                    {selectedException.actual_settlement
+                      ? `₹${selectedException.actual_settlement}`
+                      : "—"}
                   </strong>
                 </div>
 
-                <div>
+                <div className="evidence-item">
                   <span>PAYMENT STATUS</span>
                   <strong>
                     {selectedException.payment_status}
                   </strong>
                 </div>
 
-                <div>
+                <div className="evidence-item">
                   <span>SETTLEMENT STATUS</span>
                   <strong>
                     {selectedException.settlement_status}
@@ -387,7 +389,7 @@ function ExceptionInvestigation({
             <div className="ai-analysis-header">
 
               <div>
-                <span className="eyebrow">
+                <span className="eyebrow step-eyebrow step-ai">
                   STEP 2 · AI INTERPRETATION
                 </span>
 
@@ -487,7 +489,7 @@ function ExceptionInvestigation({
               </div>
 
               <div>
-                <span className="ai-label">
+                <span className="ai-label step-label step-recommendation">
                   STEP 3 · RECOMMENDED ACTION
                 </span>
 
@@ -503,7 +505,7 @@ function ExceptionInvestigation({
               <div className="human-resolution-header">
 
                 <div>
-                  <span className="ai-label">
+                  <span className="ai-label step-label step-human">
                     STEP 4 · HUMAN CONTROLLER DECISION
                   </span>
 

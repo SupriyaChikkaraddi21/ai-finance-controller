@@ -7,9 +7,9 @@
   flex-direction: column;
   gap: 0;
   padding: 22px;
-  border: 1px solid var(--border);
+  border: 1px solid #e0e6ea;
   border-radius: 12px;
-  background: var(--surface);
+  background: white;
 }
 
 .audit-event {
@@ -36,7 +36,7 @@
   top: 10px;
   bottom: -24px;
   width: 1px;
-  background: var(--border);
+  background: #dfe5e8;
 }
 
 .audit-event:last-child .audit-event-marker::after {
@@ -96,9 +96,9 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px 18px;
   padding: 12px 14px;
-  border: 1px solid var(--border);
+  border: 1px solid #e0e6ea;
   border-radius: 8px;
-  background: var(--surface-muted);
+  background: #f8fafb;
 }
 
 .audit-event-metadata span {
