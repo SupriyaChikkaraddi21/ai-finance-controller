@@ -1,5 +1,11 @@
 import { useState } from "react";
 import "./App.css";
+import "./styles/financial.css";
+import "./styles/exceptions.css";
+import "./styles/investigation.css";
+import "./styles/benchmark.css";
+import "./styles/audit.css";
+import "./styles/controller.css";
 import FinancialOverview from "./components/FinancialOverview";
 import ExceptionDistribution from "./components/ExceptionDistribution";
 import InvestigationCoverage from "./components/InvestigationCoverage";

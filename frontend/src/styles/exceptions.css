@@ -1,0 +1,151 @@
+.exception-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 15px;
+}
+
+.exception-summary {
+  background: #101820;
+  color: white;
+  border-radius: 11px;
+  padding: 20px;
+}
+.exception-row-selected {
+  background: #f8fafb;
+  box-shadow: inset 3px 0 0 #b85d3a;
+}
+.exception-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #29333b;
+}
+
+.exception-row:last-child {
+  border-bottom: none;
+}
+
+.exception-row > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.exception-marker {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d78a62;
+}
+
+.exception-name {
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.exception-row strong {
+  font-size: 14px;
+}
+
+.exception-table-container {
+  background: white;
+  border: 1px solid #e0e6ea;
+  border-radius: 11px;
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background: #f8fafb;
+  color: #7f8b94;
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  text-align: left;
+  padding: 14px 16px;
+  white-space: nowrap;
+}
+
+td {
+  padding: 14px 16px;
+  border-top: 1px solid #edf0f2;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.transaction-id {
+  font-weight: 800;
+}
+
+.exception-badge {
+  background: #fff1ec;
+  color: #b85d3a;
+  border-radius: 5px;
+  padding: 5px 7px;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.review {
+  color: #b85d3a;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.empty,
+.empty-table {
+  background: white;
+  border: 1px dashed #d4dce1;
+  border-radius: 10px;
+  padding: 40px;
+  text-align: center;
+  color: #78858e;
+}
+
+.empty h4 {
+  margin: 0 0 8px;
+  color: #27323a;
+}
+
+.empty p {
+  margin: 0;
+  font-size: 12px;
+}
+
+
+/* =========================================================
+   EXCEPTION TABLE POLISH
+   ========================================================= */
+
+.exception-table-container {
+  box-shadow: 0 5px 20px rgba(16, 24, 32, 0.03);
+}
+
+tbody tr {
+  transition: background 0.15s ease;
+}
+
+tbody tr:hover {
+  background: #fafcfd;
+}
+
+.review {
+  display: inline-block;
+  padding: 5px 7px;
+  border-radius: 5px;
+  background: #fff1ec;
+}
+
+/* =========================================================
+   RESPONSIVE EXCEPTION TABLE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .exception-table-container {
+    overflow-x: auto;
+  }
+}
