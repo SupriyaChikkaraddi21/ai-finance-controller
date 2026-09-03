@@ -1199,6 +1199,33 @@ The goal is to build an AI-assisted finance controller that can operate on struc
 
 ---
 
+## Future Improvements
+
+Potential next steps for the AI Finance Controller include:
+
+- **Production payment-provider integrations**
+  Connect directly with payment and settlement providers such as Razorpay for live reconciliation workflows.
+
+- **Continuous reconciliation monitoring**
+  Move from batch-oriented processing toward scheduled or event-driven reconciliation and exception monitoring.
+
+- **Expanded controller investigation coverage**
+  Improve investigation planning so the controller can safely cover larger exception sets while respecting model-call and cost budgets.
+
+- **Advanced exception learning**
+  Use historical, human-reviewed resolutions to improve exception prioritization, investigation guidance, and recommended actions.
+
+- **Stronger observability and alerting**
+  Add production-grade monitoring for reconciliation failures, AI availability, investigation coverage, latency, and unresolved financial risk.
+
+- **Role-based controller access**
+  Introduce authentication and role-based permissions for finance controllers, reviewers, and administrators.
+
+- **Human feedback loops**
+  Feed approved, rejected, and escalated controller decisions back into evaluation datasets for continuous system improvement.
+
+---
+
 ## Author
 
 Supriya Chikkaraddi
