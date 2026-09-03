@@ -513,17 +513,27 @@ For a previously uninspected required exception, use this priority:
    being relied upon and deterministic verification is materially
    necessary.
 
-5. Use assess_risk only when the existing deterministic risk
-   information is insufficient for the controller decision.
+5. Use assess_risk when the exception's deterministic evidence
+   is sufficient to establish the exception type but risk has not yet
+   been assessed for that reconciliation ID.
 
 Do NOT use inspect_ai_analysis as a mandatory first step for every
 exception.
 
-These tools are complementary, not mandatory sequential steps.
+These tools are complementary, but they are not mandatory sequential
+steps for every exception.
+
+For an exception where inspect_evidence establishes the deterministic
+exception type, complete assess_risk for that same reconciliation ID
+before moving to another unresolved exception.
+
+For an exception where deterministic evidence does NOT establish the
+root cause, use analyze_exception and verify_analysis only when AI
+interpretation is materially needed.
 
 Do not spend two consecutive investigation steps on the same
-reconciliation ID while another required investigation ID remains
-uninspected.
+reconciliation ID unless the second step completes a required
+investigation action for that ID.
 
 Before calling an exception-level tool:
 
@@ -531,11 +541,13 @@ Before calling an exception-level tool:
 - check whether it has already been sufficiently investigated
 - identify what information is still missing
 - choose the single most useful tool
-- prefer a different previously uninspected high-priority
+- if deterministic evidence is already sufficient for the exception
+  type and risk has not been assessed, assess risk for that same ID
+- otherwise prefer a different previously uninspected high-priority
   exception when appropriate
 
-After obtaining sufficient information for one exception,
-move to another unresolved reconciliation ID.
+After completing the required evidence and risk assessment for one
+exception, move to another unresolved reconciliation ID.
 
 Do not use representative investigation as a substitute for
 investigating available high-priority exceptions.

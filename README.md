@@ -1018,7 +1018,6 @@ The reliability tests verify the expected AI classification contract and record 
 
 ## Current Project Status
 
-## Current Project Status
 
 The current implementation has:
 

@@ -32,10 +32,31 @@ class InvestigationState:
         default_factory=set
     )
 
+    # Tracks completed tool actions separately from
+    # investigation coverage. This prevents the agent from
+    # repeating the exact same investigation action while
+    # still allowing different tools on the same exception.
+    evidence_calls: set = field(
+        default_factory=set
+    )
+    evidence_complete: set = field(
+        default_factory=set
+    )
+
+    analysis_calls: set = field(
+        default_factory=set
+    )
+
+    risk_calls: set = field(
+        default_factory=set
+    )
+
     risk_cache: dict = field(
         default_factory=dict
     )
-
+    investigated_exception_types: dict = field(
+        default_factory=dict
+    )
     def investigation_coverage(self):
         if not self.exceptions_available:
             return 0

@@ -93,10 +93,12 @@ def run_agent_loop(
     # Get the exception count directly from the deterministic
     # reconciliation backend before Gemini is called.
     # --------------------------------------------------------
+    batch_exceptions = get_batch_exceptions(
+        batch_id
+    )
+
     exceptions_available = len(
-        get_batch_exceptions(
-            batch_id
-        )
+        batch_exceptions
     )
     required_investigation_ids = (
         get_required_investigation_ids(
@@ -954,6 +956,175 @@ def run_agent_loop(
                 )
 
                 continue
+        # ----------------------------------------------------
+        # ENFORCE COMPLETION OF EVIDENCE-COMPLETE CASES
+        #
+        # If deterministic evidence has already established
+        # the exception type, require risk assessment before
+        # moving on to another investigation case.
+        #
+        # This is a state-dependent controller gate, not a
+        # fixed investigation sequence.
+        # ----------------------------------------------------
+
+        if (
+            tool_name in investigation_tools
+            and requested_reconciliation_id is not None
+            and state.evidence_complete
+        ):
+            pending_risk_ids = (
+                state.evidence_complete
+                - state.risks_assessed
+            )
+
+            if (
+                pending_risk_ids
+                and requested_reconciliation_id
+                not in pending_risk_ids
+                and tool_name != "assess_risk"
+            ):
+                required_risk_id = sorted(
+                    pending_risk_ids
+                )[0]
+
+                tool_trace.append(
+                    {
+                        "step": step,
+                        "type": "ADAPTIVE_TOOL_REQUEST_REJECTED",
+                        "original_tool": tool_name,
+                        "original_arguments": arguments,
+                        "reconciliation_id": (
+                            requested_reconciliation_id
+                        ),
+                        "required_reconciliation_id": (
+                            required_risk_id
+                        ),
+                        "reason": (
+                            "A previously inspected exception "
+                            "has deterministic evidence sufficient "
+                            "to establish its exception type, but "
+                            "its risk has not yet been assessed. "
+                            "Complete the pending risk assessment "
+                            "before moving to another exception."
+                        ),
+                        "status": "REJECTED",
+                    }
+                )
+
+                contents.append(
+                    types.Content(
+                        role="user",
+                        parts=[
+                            types.Part(
+                                text=(
+                                    "ADAPTIVE INVESTIGATION REQUEST "
+                                    "REJECTED. "
+                                    f"Reconciliation ID "
+                                    f"{required_risk_id} has "
+                                    "deterministic evidence sufficient "
+                                    "to establish its exception type, "
+                                    "but risk has not been assessed. "
+                                    "Call assess_risk for that "
+                                    "reconciliation ID before "
+                                    "investigating another exception."
+                                )
+                            )
+                        ],
+                    )
+                )
+
+                continue
+        # ----------------------------------------------------
+        # PREVENT REDUNDANT INVESTIGATION ACTIONS
+        #
+        # Different tools may be used for the same exception,
+        # but the exact same successful investigation action
+        # should not be repeated.
+        # ----------------------------------------------------
+
+        if tool_name in {
+            "inspect_evidence",
+            "inspect_ai_analysis",
+            "analyze_exception",
+            "assess_risk",
+        }:
+            reconciliation_id = arguments.get(
+                "reconciliation_id"
+            )
+
+            if reconciliation_id is not None:
+                reconciliation_id = int(
+                    float(
+                        str(
+                            reconciliation_id
+                        ).strip()
+                    )
+                )
+
+                duplicate_action = (
+                    (
+                        tool_name == "inspect_evidence"
+                        and reconciliation_id
+                        in state.evidence_calls
+                    )
+                    or (
+                        tool_name in {
+                            "inspect_ai_analysis",
+                            "analyze_exception",
+                        }
+                        and reconciliation_id
+                        in state.analysis_calls
+                    )
+                    or (
+                        tool_name == "assess_risk"
+                        and reconciliation_id
+                        in state.risk_calls
+                    )
+                )
+
+                if duplicate_action:
+                    tool_trace.append(
+                        {
+                            "step": step,
+                            "type": "REDUNDANT_TOOL_CALL_REJECTED",
+                            "tool": tool_name,
+                            "reconciliation_id": (
+                                reconciliation_id
+                            ),
+                            "reason": (
+                                "The same investigation action "
+                                "was already completed for this "
+                                "reconciliation ID. Choose a "
+                                "different useful investigation "
+                                "action or move to another "
+                                "uninspected exception."
+                            ),
+                            "status": "REJECTED",
+                        }
+                    )
+
+                    contents.append(
+                        types.Content(
+                            role="user",
+                            parts=[
+                                types.Part(
+                                    text=(
+                                        "REDUNDANT TOOL CALL REJECTED. "
+                                        f"{tool_name} was already completed "
+                                        f"for reconciliation ID "
+                                        f"{reconciliation_id}. "
+                                        "Do not repeat the same tool for "
+                                        "the same exception. "
+                                        "Choose another useful tool, or "
+                                        "move to another previously "
+                                        "uninspected exception."
+                                    )
+                                )
+                            ],
+                        )
+                    )
+
+                    continue
         tool_call_count += 1
 
         trace_entry = {
@@ -998,14 +1169,55 @@ def run_agent_loop(
                             ).strip()
                         )
                     )
-
                     if tool_name == "inspect_evidence":
                         state.evidence_inspected.add(
                             reconciliation_id
                         )
+                        state.evidence_calls.add(
+                            reconciliation_id
+                        )
 
+                        # Deterministic evidence can complete investigation
+                        # for exception types whose nature is already established
+                        # without requiring AI interpretation.
+                        if isinstance(result, dict):
+                            deterministic_exception = result.get(
+                                "deterministic_exception"
+                            )
+                        if deterministic_exception:
+                            state.investigated_exception_types[
+                                reconciliation_id
+                            ] = deterministic_exception
+
+                            evidence_complete_types = {
+                                "DUPLICATE",
+                                "MISSING_PAYMENT",
+                                "MISSING_SETTLEMENT",
+                                "STATUS_MISMATCH",
+                            }
+
+                            if (
+                                deterministic_exception
+                                in evidence_complete_types
+                            ):
+                                state.evidence_complete.add(
+                                    reconciliation_id
+                                )
+                                state.exceptions_inspected.add(
+                                    reconciliation_id
+                                )
                     elif tool_name == "inspect_ai_analysis":
                         state.analyses_inspected.add(
+                            reconciliation_id
+                        )
+                        state.analysis_calls.add(
+                            reconciliation_id
+                        )
+                    elif tool_name == "inspect_ai_analysis":
+                        state.analyses_inspected.add(
+                            reconciliation_id
+                        )
+                        state.analysis_calls.add(
                             reconciliation_id
                         )
 
@@ -1013,9 +1225,15 @@ def run_agent_loop(
                         state.analyses_inspected.add(
                             reconciliation_id
                         )
+                        state.analysis_calls.add(
+                            reconciliation_id
+                        )
 
                     elif tool_name == "assess_risk":
                         state.risks_assessed.add(
+                            reconciliation_id
+                        )
+                        state.risk_calls.add(
                             reconciliation_id
                         )
 
@@ -1065,18 +1283,58 @@ def run_agent_loop(
         # Instead, provide the executed tool result as a normal
         # controller observation.
         # ----------------------------------------------------
+        # ----------------------------------------------------
+        # Build adaptive controller observation
+        # ----------------------------------------------------
+        observation_text = (
+            "CONTROLLER TOOL OBSERVATION. "
+            f"Executed tool: {tool_name}. "
+            f"Arguments: {arguments}. "
+            f"Result: {result}"
+        )
+
+        if (
+            tool_name == "inspect_evidence"
+            and isinstance(result, dict)
+            and reconciliation_id is not None
+        ):
+            deterministic_exception = result.get(
+                "deterministic_exception"
+            )
+
+            evidence_complete_types = {
+                "DUPLICATE",
+                "MISSING_PAYMENT",
+                "MISSING_SETTLEMENT",
+                "STATUS_MISMATCH",
+            }
+
+            if deterministic_exception in evidence_complete_types:
+                observation_text += (
+                    " CASE INVESTIGATION STATUS: "
+                    "DETERMINISTIC EVIDENCE IS SUFFICIENT "
+                    "TO ESTABLISH THE EXCEPTION TYPE. "
+                    "Do not repeat inspect_evidence for this "
+                    "reconciliation ID. "
+                    "Assess risk if useful, then move to the "
+                    "next unresolved exception."
+                )
+            else:
+                observation_text += (
+                    " CASE INVESTIGATION STATUS: "
+                    "DETERMINISTIC EVIDENCE DOES NOT BY ITSELF "
+                    "ESTABLISH THE ROOT CAUSE. "
+                    "If interpretation is needed, use "
+                    "analyze_exception and verify the AI result "
+                    "before treating the case as confirmed."
+                )
 
         contents.append(
             types.Content(
                 role="user",
                 parts=[
                     types.Part(
-                        text=(
-                            "CONTROLLER TOOL OBSERVATION. "
-                            f"Executed tool: {tool_name}. "
-                            f"Arguments: {arguments}. "
-                            f"Result: {result}"
-                        )
+                        text=observation_text
                     )
                 ],
             )

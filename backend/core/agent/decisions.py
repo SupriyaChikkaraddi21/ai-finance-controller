@@ -33,7 +33,7 @@ def get_required_investigation_ids(
     # exception population selected for this controller run.
     # The full population remains available for deterministic
     # risk reporting; this set controls the investigation gate.
-    MAX_REQUIRED_INVESTIGATIONS = 25
+    MAX_REQUIRED_INVESTIGATIONS = 3
 
     return {
         item["reconciliation_id"]
