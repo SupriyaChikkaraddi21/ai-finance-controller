@@ -664,6 +664,8 @@ It can only analyze and explain an exception using the evidence provided by the 
 
 ---
 
+> **Key Safety Invariant:** AI tools are restricted to hypothesis formulation and evidence inspection; they cannot modify deterministic financial results.
+
 ## Technology Stack
 
 ### Backend
