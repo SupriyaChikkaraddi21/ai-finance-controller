@@ -273,3 +273,42 @@ footer {
     flex-direction: column;
   }
 }
+/* Batch month filter */
+.batch-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.batch-filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #6b7c8f;
+  text-transform: uppercase;
+}
+
+.batch-month-select {
+  height: 38px;
+  padding: 0 34px 0 12px;
+  border: 1px solid #d9e2e8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #14202b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.batch-month-select:hover {
+  border-color: #aebdc8;
+}
+
+.batch-month-select:focus {
+  border-color: #0b8f6a;
+  box-shadow: 0 0 0 3px rgba(11, 143, 106, 0.1);
+}

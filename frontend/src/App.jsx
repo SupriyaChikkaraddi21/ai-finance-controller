@@ -114,6 +114,7 @@ function renderControllerSummary(text) {
 }
 function App() {
   const [batches, setBatches] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState("ALL");
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [exceptions, setExceptions] = useState([]);
@@ -310,11 +311,7 @@ console.log(
       setMessage(
         `Reconciliation completed successfully — ${completedBatch.total_records} records processed.`
       );
-
       await loadBatches();
-      await loadBatchDetails(
-        completedBatch.id
-      );
     } catch (error) {
       console.error(error);
       setMessage(
@@ -593,6 +590,36 @@ const runController = async () => {
           )
         : 0,
   }));
+const availableMonths = [
+  ...new Set(
+    batches
+      .map((batch) => {
+        if (!batch.created_at) return null;
+
+        const date = new Date(batch.created_at);
+
+        return `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
+      })
+      .filter(Boolean)
+  ),
+].sort().reverse();
+
+const filteredBatches =
+  selectedMonth === "ALL"
+    ? batches
+    : batches.filter((batch) => {
+        if (!batch.created_at) return false;
+
+        const date = new Date(batch.created_at);
+
+        const month = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}`;
+
+        return month === selectedMonth;
+      });
   const filteredExceptions = selectedExceptionType
     ? exceptions.filter(
         (item) =>
@@ -703,14 +730,57 @@ const runController = async () => {
               </h3>
 
             </div>
+            <div className="batch-filter">
+              <label
+                className="batch-filter-label"
+                htmlFor="batch-month-filter"
+              >
+                Batch month
+              </label>
 
-            <span className="batch-count">
-              {batches.length} batch
-              {batches.length !== 1
-                ? "es"
-                : ""}
-            </span>
+              <select
+                id="batch-month-filter"
+                className="batch-month-select"
+                value={selectedMonth}
+                onChange={(event) =>
+                  setSelectedMonth(event.target.value)
+                }
+              >
+                <option value="ALL">
+                  All Months
+                </option>
 
+                {availableMonths.map((month) => {
+                  const [year, monthNumber] =
+                    month.split("-");
+
+                  const label = new Date(
+                    Number(year),
+                    Number(monthNumber) - 1,
+                    1
+                  ).toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  });
+
+                  return (
+                    <option
+                      key={month}
+                      value={month}
+                    >
+                      {label}
+                    </option>
+                  );
+                })}
+              </select>
+
+              <span className="batch-count">
+                {filteredBatches.length} batch
+                {filteredBatches.length !== 1
+                  ? "es"
+                  : ""}
+              </span>
+            </div>
           </div>
 
           <div className="batch-grid">
@@ -733,7 +803,7 @@ const runController = async () => {
 
             ) : (
 
-              batches.map((batch) => (
+              filteredBatches.map((batch) => (
 
                 <button
                   key={batch.id}
