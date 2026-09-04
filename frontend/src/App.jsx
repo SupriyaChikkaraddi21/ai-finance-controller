@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import "./styles/financial.css";
 import "./styles/exceptions.css";
@@ -117,6 +117,18 @@ function App() {
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [exceptions, setExceptions] = useState([]);
+  useEffect(() => {
+    if (!selectedBatch) return;
+
+    requestAnimationFrame(() => {
+      document
+        .getElementById("financial-overview")
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    });
+  }, [selectedBatch]);
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -125,6 +137,30 @@ function App() {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiError, setAiError] = useState("");
   const [selectedException, setSelectedException] = useState(null);
+  const [selectedExceptionType, setSelectedExceptionType] = useState(null);
+  useEffect(() => {
+    if (!selectedException) return;
+
+    const timer = setTimeout(() => {
+      const element = document.getElementById(
+        "exception-investigation"
+      );
+
+      if (!element) return;
+
+      const top =
+        element.getBoundingClientRect().top +
+        window.scrollY -
+        20;
+
+      window.scrollTo({
+        top,
+        behavior: "smooth",
+      });
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [selectedException]);
   const [controllerReport, setControllerReport] = useState(null);
   const [controllerLoading, setControllerLoading] = useState(false);
   const [controllerError, setControllerError] = useState("");
@@ -191,6 +227,8 @@ function App() {
         await auditResponse.json();
 
       setSelectedBatch(batchId);
+      setSelectedException(null);
+      setSelectedExceptionType(null);
       setMetrics(metricsData);
       setExceptions(exceptionsData);
       setAuditLogs(
@@ -368,18 +406,17 @@ console.log(
         );
       }
 
-      setSelectedException(data);
-
-      setAiAnalysis(
-        data.ai_analysis || null
-      );
-
       setMessage(
         `Exception ${resolutionStatus.toLowerCase()} successfully.`
       );
 
       await loadBatchDetails(
-        selectedBatch.id
+        selectedBatch
+      );
+
+      setSelectedException(data);
+      setAiAnalysis(
+        data.ai_analysis || null
       );
 
     } catch (error) {
@@ -556,6 +593,13 @@ const runController = async () => {
           )
         : 0,
   }));
+  const filteredExceptions = selectedExceptionType
+    ? exceptions.filter(
+        (item) =>
+          (item.exception_type || "UNKNOWN") ===
+          selectedExceptionType
+      )
+    : exceptions;
 
   return (
     <div className="app">
@@ -765,18 +809,22 @@ const runController = async () => {
 
         {metrics && (
           <>
-            <FinancialOverview
-              selectedBatch={selectedBatch}
+            <div id="financial-overview">
+              <FinancialOverview
+                selectedBatch={selectedBatch}
               totalRecords={totalRecords}
               matchedRecords={matchedRecords}
               exceptionRecords={exceptionRecords}
               matchRate={matchRate}
               exceptionRate={exceptionRate}
-              metrics={metrics}
-            />
+                metrics={metrics}
+              />
+            </div>
             <ExceptionDistribution
               exceptionRecords={exceptionRecords}
               exceptionVisualization={exceptionVisualization}
+              selectedExceptionType={selectedExceptionType}
+              setSelectedExceptionType={setSelectedExceptionType}
             />
             <InvestigationCoverage
               controllerReport={controllerReport}
@@ -805,11 +853,12 @@ const runController = async () => {
               auditLoading={auditLoading}
               auditError={auditError}
             />
-
             <ExceptionInvestigation
-              exceptions={exceptions}
+              exceptions={filteredExceptions}
               exceptionCounts={exceptionCounts}
               selectedException={selectedException}
+              selectedExceptionType={selectedExceptionType}
+              setSelectedExceptionType={setSelectedExceptionType}
               setSelectedException={setSelectedException}
               setAiAnalysis={setAiAnalysis}
               setAiError={setAiError}
@@ -819,7 +868,6 @@ const runController = async () => {
               aiAnalysis={aiAnalysis}
               resolveException={resolveException}
             />
-
           </>
         )}
 

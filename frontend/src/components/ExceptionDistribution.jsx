@@ -1,6 +1,8 @@
 function ExceptionDistribution({
   exceptionRecords,
   exceptionVisualization,
+  selectedExceptionType,
+  setSelectedExceptionType,
 }) {
   return (
     <section className="section">
@@ -29,39 +31,50 @@ function ExceptionDistribution({
 
         {exceptionVisualization.length > 0 ? (
 
-          exceptionVisualization.map((item) => (
+          exceptionVisualization.map((item) => {
 
-            <div
-              className="exception-bar-row"
-              key={item.type}
-            >
+            const isSelected = selectedExceptionType === item.type;
 
-              <div className="exception-bar-label">
+            return (
+              <div
+                className={`exception-bar-row ${
+                  isSelected ? "exception-bar-row-selected" : ""
+                }`}
+                key={item.type}
+                onClick={() =>
+                  setSelectedExceptionType(
+                    isSelected ? null : item.type
+                  )
+                }
+                style={{ cursor: "pointer" }}
+              >
 
-                <span>
-                  {item.type.replaceAll("_", " ")}
-                </span>
+                <div className="exception-bar-label">
 
-                <strong>
-                  {item.count} · {item.percentage}%
-                </strong>
+                  <span>
+                    {item.type.replaceAll("_", " ")}
+                  </span>
+
+                  <strong>
+                    {item.count} · {item.percentage}%
+                  </strong>
+
+                </div>
+
+                <div className="exception-bar-track">
+
+                  <div
+                    className="exception-bar-fill"
+                    style={{
+                      width: `${item.percentage}%`,
+                    }}
+                  />
+
+                </div>
 
               </div>
-
-              <div className="exception-bar-track">
-
-                <div
-                  className="exception-bar-fill"
-                  style={{
-                    width: `${item.percentage}%`,
-                  }}
-                />
-
-              </div>
-
-            </div>
-
-          ))
+            );
+          })
 
         ) : (
 
@@ -72,6 +85,12 @@ function ExceptionDistribution({
         )}
 
       </div>
+
+      {selectedExceptionType && (
+        <div className="metric-description" style={{ marginTop: "12px" }}>
+          Showing: {selectedExceptionType.replaceAll("_", " ")} · Click again to clear
+        </div>
+      )}
 
     </section>
   );

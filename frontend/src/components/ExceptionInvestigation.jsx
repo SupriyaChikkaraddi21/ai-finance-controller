@@ -4,6 +4,8 @@ function ExceptionInvestigation({
   exceptions,
   exceptionCounts,
   selectedException,
+  selectedExceptionType,
+  setSelectedExceptionType,
   setSelectedException,
   setAiAnalysis,
   setAiError,
@@ -29,41 +31,91 @@ function ExceptionInvestigation({
 
         <div className="exception-layout">
 
-          <div className="exception-summary">
+        <div className="exception-summary">
 
-            {Object.entries(
-              exceptionCounts
-            ).map(
-              ([type, count]) => (
+          <div
+            className="exception-row"
+            onClick={() =>
+              setSelectedExceptionType(null)
+            }
+            style={{
+              cursor: "pointer",
+              borderLeft:
+                selectedExceptionType === null
+                  ? "3px solid #16a085"
+                  : "3px solid transparent",
+            }}
+          >
 
-                <div
-                  className="exception-row"
-                  key={type}
-                >
+            <div>
 
-                  <div>
+              <span className="exception-marker"></span>
 
-                    <span className="exception-marker"></span>
+              <span className="exception-name">
+                ALL EXCEPTIONS
+              </span>
 
-                    <span className="exception-name">
-                      {type.replaceAll(
-                        "_",
-                        " "
-                      )}
-                    </span>
+            </div>
 
-                  </div>
+            <strong>
+              {Object.values(
+                exceptionCounts
+              ).reduce(
+                (total, count) =>
+                  total + count,
+                0
+              )}
+            </strong>
 
-                  <strong>
-                    {count}
-                  </strong>
+          </div>
+
+          {Object.entries(
+            exceptionCounts
+          ).map(
+            ([type, count]) => (
+
+              <div
+                className="exception-row"
+                key={type}
+                onClick={() =>
+                  setSelectedExceptionType(
+                    selectedExceptionType === type
+                      ? null
+                      : type
+                  )
+                }
+                style={{
+                  cursor: "pointer",
+                  borderLeft:
+                    selectedExceptionType === type
+                      ? "3px solid #16a085"
+                      : "3px solid transparent",
+                }}
+              >
+
+                <div>
+
+                  <span className="exception-marker"></span>
+
+                  <span className="exception-name">
+                    {type.replaceAll(
+                      "_",
+                      " "
+                    )}
+                  </span>
 
                 </div>
 
-              )
-            )}
+                <strong>
+                  {count}
+                </strong>
 
-          </div>
+              </div>
+
+            )
+          )}
+
+        </div>
 
           <div className="exception-table-container">
             <table>
@@ -171,7 +223,10 @@ function ExceptionInvestigation({
       </section>
 
       {selectedException && (
-        <section className="section">
+        <section
+          className="section"
+          id="exception-investigation"
+        >
           <div className="investigation-card">
 
             <div className="investigation-header">
