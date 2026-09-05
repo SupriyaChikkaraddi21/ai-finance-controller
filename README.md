@@ -4,6 +4,25 @@ An AI-assisted financial reconciliation and exception-investigation system desig
 
 The system combines deterministic financial controls with AI-assisted exception analysis, verification, risk prioritization, and controller-level investigation.
 
+## Screenshots
+
+### Reconciliation Dashboard
+![Reconciliation Dashboard](screenshots/dashboard.png)
+
+### Financial Overview
+![Financial Reconciliation](screenshots/reconciliation.png)
+
+### Exception Evidence
+![Exception Evidence](screenshots/exception-evidence.png)
+
+### AI Exception Analysis
+![AI Exception Analysis](screenshots/ai-analysis.png)
+
+### Controller Investigation
+![Controller Investigation](screenshots/agent-investigation.png)
+
+### Audit Trail
+![Audit Trail](screenshots/audit-trail.png)
 ---
 
 ## Overview
